@@ -1,0 +1,3317 @@
+# HydraScan — Complete Agent Build Specification
+
+> **Version:** 1.1.0
+> **Target event:** GlobeHack 2026 — April 18–19, 2026, Arizona State University
+> **Track:** Hydrawav3 Recovery Intelligence (Main Track)
+> **Side tracks:** InsForge (backend), ElevenLabs (voice), Vector Demand (market proof)
+> **Team size:** 4 humans + AI coding agents
+> **Build window:** ~36 hours (hackathon) — but this spec is production-grade
+
+---
+
+## TABLE OF CONTENTS
+
+1. [Mission & Product Identity](#1-mission--product-identity)
+2. [Source Material Digest](#2-source-material-digest)
+3. [Constraints & Guardrails](#3-constraints--guardrails)
+4. [Technical Context: APIs, SDKs, Credentials, Datasets](#4-technical-context)
+5. [System Architecture](#5-system-architecture)
+6. [Data Model & Schema Definitions](#6-data-model--schema-definitions)
+7. [Phase 0: Project Scaffold & Environment Setup](#phase-0-project-scaffold--environment-setup)
+8. [Phase 1: Identity, Auth & Multi-Tenant Backend](#phase-1-identity-auth--multi-tenant-backend)
+9. [Phase 2: Device Registry & Hydrawav3 MQTT Integration](#phase-2-device-registry--hydrawav3-mqtt-integration)
+10. [Phase 3: QuickPose Assessment Pipeline (iOS)](#phase-3-quickpose-assessment-pipeline-ios)
+11. [Phase 4: Recovery Intelligence Engine](#phase-4-recovery-intelligence-engine)
+12. [Phase 5: Practitioner Dashboard & Session Workflow](#phase-5-practitioner-dashboard--session-workflow)
+13. [Phase 6: Client iOS App — Intake, Capture, Continuity](#phase-6-client-ios-app--intake-capture-continuity)
+14. [Phase 7: Post-Session Outcomes & Learning Loop](#phase-7-post-session-outcomes--learning-loop)
+15. [Phase 8: Analytics, Admin & Clinic Intelligence](#phase-8-analytics-admin--clinic-intelligence)
+16. [Phase 9: Final Integration, Polish & Demo Prep](#phase-9-final-integration-polish--demo-prep)
+17. [Appendix A: Full MQTT API Reference](#appendix-a-full-mqtt-api-reference)
+18. [Appendix B: SessionConfig TypeScript Schema](#appendix-b-sessionconfig-typescript-schema)
+19. [Appendix C: Language & Compliance Guardrails](#appendix-c-language--compliance-guardrails)
+20. [Appendix D: Judging Rubric & Scoring Strategy](#appendix-d-judging-rubric--scoring-strategy)
+21. [Appendix E: Datasets & External Resources](#appendix-e-datasets--external-resources)
+22. [Appendix F: Clarifying Questions Log](#appendix-f-clarifying-questions-log)
+
+---
+
+## 1. Mission & Product Identity
+
+### 1.1 What is HydraScan?
+
+HydraScan is a **practitioner-first recovery intelligence platform** for the Hydrawav3 ecosystem. It captures client movement and recovery signals using QuickPose on-device pose estimation, converts them into a live Recovery Graph, recommends a personalized Hydrawav3 session, launches that session on a real HydraWav3Pro device through the MQTT Control API, and tracks outcomes across visits so recovery becomes continuous instead of isolated.
+
+### 1.2 What HydraScan is NOT
+
+- NOT a generic body-scanning app
+- NOT a medical diagnosis engine
+- NOT a practitioner replacement layer
+- NOT a consumer wellness app that happens to have a device connection
+- It IS a Hydrawav3-native intelligence, orchestration, and continuity platform
+
+### 1.3 Core Promise (one line)
+
+> Turn each 9-minute Hydrawav3 session into a persistent recovery intelligence loop.
+
+### 1.4 Pitch Sentence
+
+> HydraScan turns a 9-minute Hydrawav3 session into a persistent, practitioner-guided recovery intelligence system that runs on real Hydrawav3Pro hardware.
+
+### 1.5 The Hydrawav3 Flywheel: Know → Act → Learn
+
+Everything HydraScan does maps to this flywheel:
+
+| Stage | What happens | HydraScan responsibility |
+|-------|-------------|-------------------------|
+| **Know** | Client signs in, completes rapid intake, highlights body zones, performs guided QuickPose movement captures | QuickPose computes landmarks, joint angles, ROM, asymmetry. HydraScan merges with recovery signals, wearables, profile history → outputs a 60-second Recovery Map and Recovery Graph |
+| **Act** | Practitioner opens client profile, reviews Recovery Map, approves/edits recommended session | HydraScan recommends Sun/Moon placement, modality mix, intensity, sequence, duration → emits typed `SessionConfig` → publishes to target device via MQTT Control API |
+| **Learn** | Client and practitioner complete post-session feedback and follow-up check-ins | HydraScan records subjective change, re-test values, adherence, next-visit signals → updates Recovery Graph against exact payload that ran → improves future recommendations |
+
+### 1.6 Target Users
+
+| User | Context | Primary need |
+|------|---------|-------------|
+| **Physical Therapists** | Post-surgical recovery, chronic pain management support, neurological rehab, sports injury recovery | Objective intake, faster protocol selection, outcome visibility |
+| **Chiropractors** | Pre-adjustment tissue prep, post-adjustment recovery, soft-tissue work between visits | Quick session personalization, throughput, adherence |
+| **Sports Trainers** | Pre-game warm-up, post-game recovery, athletic performance support | Fast turnaround, return-to-training readiness |
+| **Medical Spas & Wellness Centers** | Pain relief add-on, medspa service, destination spa upgrade | Hands-off premium service that scales, ROI visibility |
+
+---
+
+## 2. Source Material Digest
+
+Every agent working on this project should treat the following source documents as canonical. If a design decision conflicts with any of these, the source material wins.
+
+### 2.1 Hydrawav3 Recovery Intelligence Track Challenge Guide
+
+**File:** `Hydrawav3_ASU_Recovery_Intelligence_Challenge_Guide.pdf` (10 pages)
+
+**Key extracts:**
+
+- **The device:** Hydrawav3 is a hands-off recovery system using Polar Water Resonance (PWR). Dual Sun and Moon pads deliver three synchronized modalities in a single 9-minute session: thermal modulation, photobiomodulation (red 660nm + blue 450nm LED), and resonance-based mechanical stimulation (vibro-acoustic).
+- **Sun pad (red):** Warming. Promotes circulation, prepares tissue for movement.
+- **Moon pad (blue):** Cooling. Supports recovery, down-regulates signaling.
+- **The three gaps the track exists to close:**
+  1. **Before the session:** No objective, patient-specific way to understand where dysfunction starts. Protocol decisions default to guesswork.
+  2. **During the session:** No intelligent layer translating understanding into a personalized protocol with the right modality mix, intensity, sequence, and duration.
+  3. **After the session:** No structure, no feedback loop, no mechanism to compound outcomes over time. Recovery becomes an isolated event instead of a continuous journey.
+- **Directions that caught Hydrawav3's attention:**
+  - Camera-based body mapping using pose estimation (MediaPipe, OpenPose) for asymmetry detection and pad placement suggestions. Stretch goal: AR overlay with red/blue zones.
+  - Integration with existing movement screening, ROM measurement, or posture analysis tools.
+  - Rapid pre-session intake that fits inside a 60–80 patient/day clinic workflow, adding zero meaningful time overhead.
+  - AI recovery coach pulling data from Whoop, Apple Watch, or other wearables.
+  - Protocol recommendation engine: assessment input → personalized protocol output. Practitioner interaction must fit inside two minutes.
+  - Gamified client recovery app: daily Recovery Score, mobility streaks, XP and levels, visual before/after feedback.
+  - Practitioner outcomes dashboard that shows recovery trends across a client base.
+- **Judging criteria (100 points total):**
+  - Practitioner Impact: 25 points (highest weight)
+  - Technical Feasibility: 20 points
+  - Platform Integration: 20 points
+  - Path to Product: 20 points
+  - User Experience: 15 points
+- **Bonus points:**
+  - +10 Loop Coverage: project meaningfully touches more than one stage (assessment + action, action + continuity, or all three)
+  - +5 Live Data Demo: working integration with real or simulated PWR session data
+  - +3 Business Model Insight: clear thinking on pricing, go-to-market, or partnership strategy
+- **Prizes:**
+  - Grand Prize (1): Hydrawav3 Pro device (retail $2,295), paid summer internship, winning concept built into the production platform with credit
+  - Runners-Up (2): $300 cash each + first-look contractor opportunities
+  - People's Choice (1): $200 cash
+  - Honorable Mentions: Swag + personal LinkedIn recommendation from founder
+- **Universal constraints:**
+  - Wellness positioning ONLY. No medical diagnosis claims, no clinical language.
+  - Practitioner-first. Every solution must support, not replace, the practitioner.
+  - Clinic-compatible. Assume 60–80 patients/day. Practitioner touch time under two minutes per decision point.
+  - Personalization over templates. Rules-based one-size-fits-all logic scores lower.
+  - Brand language: Hydrawav3 (lowercase w). Use "supports," not "treats." Use "recovery" and "wellness," not "clinical" or "medical."
+- **Starter kit contents:**
+  - Live Hydrawav3 API (credentials at Saturday workshop)
+  - Mock session logs and patient profile datasets
+  - Body movement video library (5–10 clips showing common asymmetries)
+  - Wearable data samples: HRV, strain, sleep quality, activity
+  - Sun/Moon pad placement logic and decision trees
+  - Approved wellness terminology and regulatory guardrails
+  - 3–4 patient personas with conditions, histories, and recovery goals
+  - Example HRV-based protocol decision tree
+  - Engagement benchmarks for health apps
+- **Physical resources:** 5 Hydrawav3 devices on-site for hands-on testing (rotating schedule, priority to in-session personalization and outcome continuity angles)
+- **Saturday workshop (3:30 PM):**
+  - Minutes 0–10: Live device demo
+  - Minutes 10–20: API walkthrough, credentials, endpoints, data structure
+  - Minutes 20–30: Open Q&A with Shiva (founder)
+
+### 2.2 HydraWav Device (MQTT) Control API Documentation (HydraWav3Pro)
+
+**File:** `HydraWav_Device__MQTT__Control_API_Documentation__HydraWav3Pro_.pdf` (4 pages)
+
+**Complete API surface (transcribed from scanned document):**
+
+#### Authentication
+```
+POST /api/v1/auth/login
+
+Request Body:
+{
+  "username": "string",
+  "password": "string",
+  "rememberMe": true
+}
+
+Response:
+{
+  "JWT_REFRESH_TOKEN": "Bearer <refresh_token>",
+  "JWT_ACCESS_TOKEN":  "Bearer <access_token>"
+}
+
+All further requests require:
+Authorization: Bearer <access_token>
+```
+
+#### MQTT Publish API
+```
+POST /api/v1/mqtt/publish
+
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <access_token>
+
+Request Format:
+{
+  "topic": "HydraWav3Pro/config",
+  "payload": "STRINGIFIED_JSON"
+}
+
+IMPORTANT: Payload must be a stringified JSON, not a raw object.
+```
+
+#### Start Session (Play Command) — playCmd: 1
+```json
+{
+  "mac": "74:4D:BD:A0:A3:EC",
+  "sessionCount": 3,
+  "sessionPause": 30,
+  "sDelay": 0,
+  "cycle1": 1,
+  "cycle5": 1,
+  "edgeCycleDuration": 9,
+  "cycleRepetitions": [6, 6, 3],
+  "cycleDurations": [3, 3, 3],
+  "cyclePauses": [3, 3, 3],
+  "pauseIntervals": [3, 3, 3],
+  "leftFuncs": ["leftColdBlue", "leftHotRed", "leftColdBlue"],
+  "rightFuncs": ["rightHotRed", "rightColdBlue", "rightHotRed"],
+  "pwmValues": {
+    "hot": [90, 90, 90],
+    "cold": [250, 250, 250]
+  },
+  "playCmd": 1,
+  "led": 1,
+  "hotDrop": 5,
+  "coldDrop": 3,
+  "vibMin": 15,
+  "vibMax": 222,
+  "totalDuration": 426
+}
+```
+
+#### Stop Command — playCmd: 3
+```json
+{
+  "mac": "74:4D:BD:A0:A3:EC",
+  "playCmd": 3
+}
+```
+
+#### Pause Command — playCmd: 2
+```json
+{
+  "mac": "74:4D:BD:A0:A3:EC",
+  "playCmd": 2
+}
+```
+
+#### Resume Command — playCmd: 4
+```json
+{
+  "mac": "74:4D:BD:A0:A3:EC",
+  "playCmd": 4
+}
+```
+
+#### Play Command Values
+
+| Command | Value |
+|---------|-------|
+| Start   | 1     |
+| Pause   | 2 (from JSON examples; doc table says 3 — CONFIRM WITH SHIVA) |
+| Stop    | 3     |
+| Resume  | 4     |
+
+#### Important Notes
+- Payload must ALWAYS be sent as a **string** (stringified JSON)
+- Escape all quotes using `\"`
+- The topic is always `"HydraWav3Pro/config"`
+- Every command targets a specific device by MAC address
+
+### 2.3 Hackathon Guide (HTML resource page)
+
+**File:** `Hackathon_Guide__1_.html`
+
+**Key extracts:**
+
+#### App Access Credentials
+```
+URL:      https://www.hydrawav3.studio (use Chrome or Edge)
+Username: annierae
+Password: anniesturm
+
+Note: After login, "Select Your Organization" — loading icon may not stop.
+Refresh browser and select organization again.
+```
+
+#### Protocol Library
+- All protocols the device can run are browseable at: `https://www.hydrawav3.com/protocols`
+- App walkthrough videos: `https://www.hydrawav3.com/start-session-videos`
+- Complete resource folder: Google Drive link provided
+
+#### Live Demo Video
+- Vimeo: `https://vimeo.com/1184430448` — real session data from a previous client session
+
+#### What You Can Extract from Video (accuracy ratings)
+
+| Metric | How | Accuracy | Requirements |
+|--------|-----|----------|-------------|
+| Joint Angles / ROM | Pose landmarks + trigonometry | **High** | Full body visible |
+| Movement Quality | Compare angles against reference models | **High** | Reference dataset (UI-PRMD) |
+| Asymmetry | Left vs. right side comparison | **High** | Both sides visible |
+| Gait Analysis | Step length, cadence, symmetry | **High** | Walking video, side angle |
+| Heart Rate | rPPG — skin color changes in face | **±5–10 bpm** | Clear face, stable lighting, 15–30s |
+| Breath Rate | Chest/shoulder rise-fall tracking | **±1–2 /min** | Torso visible |
+| HRV | Beat-to-beat intervals from HR | **Moderate** | 60+ sec clean HR data |
+| Stress Level | Derived from HR + HRV trends | **Estimated** | Longer recording |
+| Fatigue | Movement speed decay + HR recovery | **Estimated** | Movement + face data |
+| SpO2 | Not possible from RGB camera | **N/A** | Needs infrared |
+| Skin Temperature | Not possible from RGB camera | **N/A** | Needs thermal camera |
+
+#### Recommended Architecture (from Hydrawav3)
+
+```
+Video Input (camera, phone, or dataset file)
+       │
+       ├─── BODY (full frame) ─────────────────── FACE (crop) ───┐
+       │                                                          │
+       ▼                                                          ▼
+  Pose Extraction                                          rPPG Extraction
+  33 landmarks/frame                                       Skin color analysis
+       │                                                          │
+       ▼                                                          ▼
+  Joint Angles + ROM              ┌──────────────┐          Heart Rate
+  Movement Quality                │ Chest Motion  │          HRV Metrics
+  Asymmetry Detection             │ = Breath Rate │               │
+       │                          └──────────────┘               │
+       │                                 │                        │
+       └─────────────┬──────────────────┴────────────────────────┘
+                     │
+                     ▼
+             Structured Data Bundle
+             {rom, angles, symmetry, hr, rr, hrv}
+                     │
+                     ▼
+             LLM Analysis (Claude API or OpenAI)
+                     │
+                     ▼
+             RECOVERY ASSESSMENT REPORT
+```
+
+#### Limitations (from Hydrawav3)
+- **Lighting matters** — rPPG works best in stable, good lighting. Outdoor + exercise = harder.
+- **Motion artifacts** — Active exercise makes heart rate extraction noisier.
+- **Accuracy ceiling** — Video-based HR is ±5–10 bpm vs. clinical ±1–2 bpm. This is screening, not diagnosis.
+- **Privacy** — Face video requires consent. Get it before filming.
+- **Multi-camera > single camera** — OpenCap with 2+ phones significantly outperforms single-angle.
+
+### 2.4 Tracks & Globehack 2026 (PDF)
+
+**Key facts:**
+- Event: April 18–19, 2026, Arizona State University
+- One project can compete in one main track and multiple side tracks
+- Judges evaluate each track separately based on track-specific criteria
+- Hydrawav3 track description: "Physical therapy shouldn't be a one-time clinic visit. Bridge ancient wellness with modern tech by building an app layer that assesses, personalizes, and learns from a patient's body."
+- Target audience: Biomedical Engineering & Pre-Med Students, CS Developers, Business/Sales Majors
+
+### 2.5 GlobeHack 2026 Sponsor Intent Report (PDF)
+
+**Key strategic insights:**
+- Sponsors do NOT want "AI for AI's sake." They want compact, execution-heavy demos that prove one business outcome, show a believable workflow, and make integration feel real.
+- For Hydrawav3 specifically: practitioner-first recovery workflows with measurable improvement and careful wellness framing.
+- The highest-probability winning posture: "one painful workflow, one visibly better outcome, one working loop."
+- Hydrawav3 + InsForge + ElevenLabs is called out as a strong combination for teams with health-tech instincts and strong UX.
+
+### 2.6 QuickPose SDK
+
+**Source:** `https://quickpose.ai/products/android-sdk/` and iOS documentation
+
+**Key technical facts:**
+- 33-point full-body skeleton detection built on MediaPipe
+- Features: rep counting, range of motion, yoga pose detection, joint angle analysis, customizable overlays, raw pose output
+- 100% on-device inference (no cloud dependency for pose computation)
+- **Android SDK:** Built on MediaPipe, Jetpack Compose and View-based layout support, targets Android 8.0 / API 26+
+- **iOS SDK modules:**
+  - `QuickPoseCore` — Core processing
+  - `QuickPoseMP` (lite/full/heavy variants) — MediaPipe model variants
+  - `QuickPoseCamera` — Camera capture integration
+  - `QuickPoseSwiftUI` — SwiftUI view components (`QuickPoseBasicView`, `QuickPoseCameraView`, `QuickPoseOverlayView`)
+- Installation: Swift Package Manager
+- Integration pattern: SwiftUI-first with `QuickPoseBasicView` wrappers
+
+---
+
+## 3. Constraints & Guardrails
+
+### 3.1 Language & Compliance Rules (MANDATORY)
+
+Every UI string, API response, report output, and LLM-generated text MUST comply with these rules. Violations will hurt judging scores.
+
+| ALWAYS USE | NEVER USE |
+|-----------|-----------|
+| recovery, wellness, mobility, performance | medical device, clinical, diagnostic |
+| supports, empowers, enhances | treats, cures, diagnoses, heals |
+| practitioner-first, hands-off | replaces the practitioner |
+| supports inflammation management | reduces inflammation |
+| the body heals itself | we heal the body |
+| movement insights, recovery signals | clinical findings, medical results |
+| wellness indicators | diagnostic indicators |
+
+### 3.2 Brand Language
+- **Hydrawav3** is always spelled with a lowercase `w`
+- The company name is **Hydrawav3** (not HydraWav, Hydra Wav, etc.)
+- In API/code contexts, the official topic string is `"HydraWav3Pro/config"` — use this exact casing
+
+### 3.3 Clinic Compatibility Requirements
+- Any in-clinic interaction must fit inside a realistic workflow
+- Assume 60–80 patients per day
+- Practitioner touch time stays under **two minutes** per decision point
+- Intake for the client should complete in **under 60 seconds**
+
+### 3.4 Personalization Requirements
+- Every patient is different
+- Rules-based one-size-fits-all logic scores LOWER than systems that adapt
+- The system must show WHY a recommendation was made, not just WHAT it is
+
+### 3.5 Technical Constraints
+- iOS app must use SwiftUI
+- QuickPose is the pose estimation SDK (not raw MediaPipe)
+- The MQTT API payload must ALWAYS be stringified JSON, not raw objects
+- The MQTT topic is ALWAYS `"HydraWav3Pro/config"`
+- Device targeting is ALWAYS by MAC address
+- JWT tokens from `/api/v1/auth/login` are used for all API calls
+
+### 3.6 Privacy & Consent
+- Face video requires explicit consent before filming
+- Patient data must be scoped to clinic workspaces (no cross-clinic leakage)
+- Session logs should not contain personally identifiable information outside the authenticated context
+- rPPG face data should be processed on-device and not stored as raw video
+
+---
+
+## 4. Technical Context
+
+### 4.1 Hydrawav3 MQTT Control API
+
+**Base URL:** To be confirmed at the Saturday workshop (credentials distributed then)
+
+**Auth endpoint:** `POST /api/v1/auth/login`
+**MQTT endpoint:** `POST /api/v1/mqtt/publish`
+**Topic:** `"HydraWav3Pro/config"`
+
+**App credentials (for the web dashboard at hydrawav3.studio):**
+```
+URL:      https://www.hydrawav3.studio
+Username: annierae
+Password: anniesturm
+```
+
+> **CLARIFYING QUESTION [CQ-001]:** Are the API auth credentials the same as the app login credentials above, or will separate API credentials be distributed at the Saturday workshop? This affects the auth service implementation in Phase 1.
+
+> **CLARIFYING QUESTION [CQ-002]:** What is the base URL for the API endpoints? The MQTT doc shows relative paths (`/api/v1/auth/login`, `/api/v1/mqtt/publish`) but does not specify the host. Is it `https://www.hydrawav3.studio/api/v1/...` or a different host?
+
+> **CLARIFYING QUESTION [CQ-003]:** The Play Command Values table in the MQTT doc shows Stop=3 and Pause=3 (identical values), but the JSON examples show Pause payload uses `playCmd: 2` while Stop uses `playCmd: 3`. Which is canonical? **Implementation decision:** Use JSON example values (Pause=2, Stop=3, Resume=4) until confirmed. The serializer is centralized so changing this is a one-line fix.
+
+### 4.2 QuickPose iOS SDK
+
+**Installation:**
+```swift
+// Swift Package Manager
+// Add package: https://github.com/nickvzw/QuickPose-iOS (or official QuickPose SPM URL)
+// Modules to import:
+import QuickPoseCore
+import QuickPoseMP        // or QuickPoseMPFull for higher fidelity
+import QuickPoseCamera
+import QuickPoseSwiftUI
+```
+
+**Key components for HydraScan:**
+
+```swift
+// Camera capture view
+QuickPoseCameraView(/* config */)
+
+// Overlay view for real-time pose visualization
+QuickPoseOverlayView(/* pose results */)
+
+// Basic integrated view (camera + overlay)
+QuickPoseBasicView(/* config, features */)
+```
+
+**Features HydraScan will use:**
+- `QuickPose.Feature.rangeOfMotion(.shoulder)` — ROM measurement for specific joints
+- `QuickPose.Feature.overlay(.skeleton)` — Full skeleton overlay
+- Joint angle computation from 33 landmarks
+- Asymmetry detection (left vs right comparison)
+- Movement quality scoring against reference data
+- Rep counting for guided assessment sequences
+
+> **CLARIFYING QUESTION [CQ-004]:** Does QuickPose iOS SDK require a license key / API key for production builds, or is it free for hackathon use? This affects the build pipeline.
+
+> **CLARIFYING QUESTION [CQ-005]:** Which QuickPoseMP variant should we use? `lite` for speed, `full` for accuracy, or `heavy` for maximum fidelity? **Implementation decision:** Default to `QuickPoseMP-full` (balance of speed and accuracy suitable for clinic use).
+
+### 4.3 Backend Stack
+
+**Recommended:** Supabase (or equivalent multi-tenant backend)
+
+**Why Supabase:**
+- PostgreSQL with Row Level Security (RLS) for multi-clinic data isolation
+- Built-in JWT auth
+- Real-time subscriptions (useful for live session status)
+- Storage for session logs, assessment data, reports
+- Edge Functions for server-side logic
+- Free tier sufficient for hackathon
+
+**Alternative:** Firebase, or InsForge (aligns with InsForge side track for bonus judging)
+
+> **CLARIFYING QUESTION [CQ-006]:** Should we use InsForge as the backend to also compete in the InsForge side track? This would strengthen the "AI-optimized BaaS" story but adds a dependency on a less familiar platform. **Implementation decision:** Default to Supabase for reliability; build an InsForge adapter as a stretch goal.
+
+### 4.4 LLM Integration
+
+**Purpose:** Explanation generation, recovery narrative, protocol rationale — NOT core safety decisions.
+
+**Options:**
+- Claude API (Anthropic) — available in artifacts
+- OpenAI API
+- Local/on-device inference (not practical for hackathon)
+
+**Usage pattern:**
+```
+Input: structured recovery data (ROM values, asymmetry scores, session history, outcomes)
+Output: plain-language explanation for practitioner ("This client responded best to...")
+```
+
+**Critical rule:** The LLM does NOT decide the protocol. The rules engine + recommendation engine decide. The LLM explains the decision in natural language.
+
+### 4.5 Movement & Vitals Datasets (provided by Hydrawav3)
+
+#### Movement & ROM Datasets
+
+| # | Dataset | Type | Format | Link |
+|---|---------|------|--------|------|
+| 1 | UI-PRMD | PT exercises (10 exercises, correct + incorrect) | Joint positions + angles | `http://webpages.uidaho.edu/ui-prmd/` |
+| 2 | OpenCap (Stanford) | 3D kinematics from smartphone video | RGB video + OpenSim | `https://app.opencap.ai` / `https://simtk.org/projects/opencap` |
+| 3 | REHAB24-6 | Multi-modal rehab exercises | RGB video + skeleton | `https://zenodo.org/records/13305826` |
+| 4 | MobiPhysio | 3,686 videos, 9 Active ROM exercises, 58 participants | RGB smartphone video | `https://pmc.ncbi.nlm.nih.gov/articles/PMC12992533/` |
+| 5 | UCO Rehab | 2,160 sequences, 5 cameras, 4 upper + 4 lower exercises | RGB video (multi-cam) | `https://github.com/AVAuco/ucophyrehab` |
+| 6 | AddBiomechanics | 70+ hours, 273 subjects, 24M+ frames | Mocap + models | `https://addbiomechanics.org/download_data.html` |
+| 7 | Health & Gait | 398 participants, 1,564 walking videos | RGB + pose | `https://github.com/AVAuco/healthgait` |
+| 8 | GAVD | Largest gait video collection with clinical annotations | YouTube + annotations | `https://github.com/Rahmyyy/GAVD` |
+| 9 | Kaggle Physio | Pre-processed exercise classification | Pre-processed | `https://www.kaggle.com/datasets/rabieelkharoua/classification-of-physiotherapy-exercises-dataset` |
+
+#### Contactless Vitals Datasets
+
+| # | Dataset | Type | Format | Link |
+|---|---------|------|--------|------|
+| 1 | UBFC-rPPG | HR from face video, 42 participants | RGB face + PPG ground truth | `https://sites.google.com/view/ybenezeth/ubfcrppg` |
+| 2 | PURE | Controlled facial videos with HR | Multiple scenarios | TU Ilmenau (registration) |
+| 3 | COHFACE | HR + respiratory ground truth | RGB face + PPG + resp | Registration required |
+| 4 | "Gaze into Heart" (2025) | 600 subjects, 13 biomarkers | RGB multi-cam | `https://arxiv.org/html/2508.17924v1` |
+
+### 4.6 Tools Reference
+
+| Tool | What It Does | Install |
+|------|-------------|---------|
+| Google MediaPipe | 33-landmark pose detection, real-time, mobile-ready | `pip install mediapipe` |
+| OpenPose (CMU) | 135-keypoint detection (body + face + hands + feet) | GitHub |
+| OpenCap | Smartphone video → 3D kinematics | `app.opencap.ai` |
+| rPPG-Toolbox | Complete HR-from-video pipeline, multiple DL models | GitHub |
+| pyVHR | Video-based heart rate estimation | `pip install pyVHR` |
+| hrv-analysis | HRV metrics from RR intervals | `pip install hrv-analysis` |
+| respmon | Webcam respiratory monitoring | GitHub |
+| OpenCV | Video processing, frame extraction, face detection | `pip install opencv-python` |
+| SciPy | Signal filtering, frequency analysis | `pip install scipy` |
+
+**Note:** HydraScan uses **QuickPose** (which wraps MediaPipe) rather than raw MediaPipe for the iOS app. The tools above are relevant for backend processing, dataset work, and the rPPG vitals pipeline.
+
+
+---
+
+## 5. System Architecture
+
+### 5.1 High-Level Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CLIENT LAYER                                 │
+│                                                                     │
+│  ┌─────────────────────┐      ┌──────────────────────────────────┐ │
+│  │   iOS Client App    │      │   Practitioner iPad / Web App    │ │
+│  │   (SwiftUI)         │      │   (SwiftUI or React)             │ │
+│  │                     │      │                                  │ │
+│  │  • Sign in w/ Apple │      │  • Recovery Map view             │ │
+│  │  • Rapid Intake     │      │  • Protocol recommendation      │ │
+│  │  • QuickPose capture│      │  • Device selection (Registry)   │ │
+│  │  • Body zone input  │      │  • Session launch / lifecycle    │ │
+│  │  • Post-session     │      │  • Post-session re-test          │ │
+│  │    feedback          │      │  • Client trends & outcomes     │ │
+│  │  • Recovery Score   │      │  • Clinic admin (if admin role)  │ │
+│  │  • Continuity       │      │                                  │ │
+│  └────────┬────────────┘      └──────────┬───────────────────────┘ │
+│           │                               │                         │
+└───────────┼───────────────────────────────┼─────────────────────────┘
+            │         HTTPS / WSS           │
+            ▼                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       BACKEND LAYER                                 │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    Supabase (or InsForge)                     │  │
+│  │                                                              │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │  │
+│  │  │   Auth   │  │ Postgres │  │ Storage  │  │ Realtime │   │  │
+│  │  │  (JWT)   │  │  (RLS)   │  │  (S3)    │  │  (WSS)   │   │  │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │  │
+│  │                                                              │  │
+│  │  ┌────────────────────────────────────────────────────────┐ │  │
+│  │  │              Edge Functions / Serverless                │ │  │
+│  │  │                                                        │ │  │
+│  │  │  • Recovery Intelligence Engine                        │ │  │
+│  │  │  • SessionConfig Generator                             │ │  │
+│  │  │  • Safe Envelope Validator                             │ │  │
+│  │  │  • MQTT Proxy (auth + publish to Hydrawav3 API)        │ │  │
+│  │  │  • LLM Explanation Service                             │ │  │
+│  │  │  • Recovery Score Calculator                           │ │  │
+│  │  │  • Outcome Trend Analyzer                              │ │  │
+│  │  └────────────────────────────────────────────────────────┘ │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               │  HTTPS (JWT-authenticated)
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    HYDRAWAV3 DEVICE LAYER                            │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │              HydraWav3Pro MQTT Control API                    │  │
+│  │                                                              │  │
+│  │  POST /api/v1/auth/login      → JWT tokens                  │  │
+│  │  POST /api/v1/mqtt/publish    → Device commands              │  │
+│  │                                                              │  │
+│  │  Topic: "HydraWav3Pro/config"                                │  │
+│  │  Target: Device MAC address                                  │  │
+│  │  Commands: Start(1), Pause(2), Stop(3), Resume(4)            │  │
+│  │                                                              │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │  │
+│  │  │ Device A │  │ Device B │  │ Device C │  ...              │  │
+│  │  │ Room 1   │  │ Room 2   │  │ Room 3   │                  │  │
+│  │  │ 74:4D:.. │  │ AB:CD:.. │  │ EF:01:.. │                  │  │
+│  │  └──────────┘  └──────────┘  └──────────┘                  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 Data Flow: End-to-End Session
+
+```
+CLIENT INTAKE         PRACTITIONER REVIEW      DEVICE SESSION         POST-SESSION
+─────────────         ───────────────────      ──────────────         ────────────
+
+[Client taps            [Practitioner opens     [HydraScan POSTs      [Client logs
+ body zones]             Recovery Map]           SessionConfig to       outcome:
+      │                       │                  /api/v1/mqtt/publish]  stiffness 7→3]
+      ▼                       ▼                       │                     │
+[QuickPose runs         [Reviews ROM,                 ▼                     ▼
+ guided captures]        asymmetry, trends]     [Device starts         [HydraScan stores
+      │                       │                  9-min session]         outcome against
+      ▼                       ▼                       │                 exact SessionConfig
+[ROM, angles,           [Accepts/edits               ▼                 that ran]
+ asymmetry,              recommended              [Practitioner              │
+ movement quality        SessionConfig]           controls via              ▼
+ computed on-device]          │                   Pause/Resume/Stop]   [Recovery Graph
+      │                       ▼                       │                 updated]
+      ▼                 [Safe envelope                ▼                     │
+[Recovery signals        validation]            [Session ends,              ▼
+ + wearable data              │                  log saved]           [Next recommendation
+ uploaded to backend]         ▼                                        improves]
+      │                 [Stringified +
+      ▼                  published via
+[Recovery Map +          MQTT proxy]
+ Recovery Graph
+ generated]
+```
+
+### 5.3 Component Ownership Map
+
+| Component | Owner (agent/team member) | Language | Key dependencies |
+|-----------|--------------------------|----------|-----------------|
+| iOS Client App | iOS agent | Swift / SwiftUI | QuickPose SDK, HealthKit, Supabase Swift |
+| Practitioner App (iPad) | iOS agent or Web agent | SwiftUI or React | Supabase, MQTT proxy |
+| Backend: Auth & Data | Backend agent | TypeScript (Edge Functions) + SQL | Supabase, PostgreSQL |
+| Backend: MQTT Proxy | Backend agent | TypeScript | Hydrawav3 MQTT API |
+| Backend: Recovery Engine | Backend agent | TypeScript / Python | Rules engine, LLM API |
+| Backend: Safe Envelope | Backend agent | TypeScript | Static config, validation |
+| Recovery Graph data model | Backend agent | SQL + TypeScript types | PostgreSQL |
+| Device Registry | Backend agent | SQL + TypeScript | PostgreSQL |
+
+---
+
+## 6. Data Model & Schema Definitions
+
+### 6.1 Core Tables
+
+#### `clinics`
+```sql
+CREATE TABLE clinics (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL,
+  address       TEXT,
+  timezone      TEXT DEFAULT 'America/Phoenix',
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### `users`
+```sql
+CREATE TABLE users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id     UUID REFERENCES clinics(id) NOT NULL,
+  role          TEXT NOT NULL CHECK (role IN ('client', 'practitioner', 'admin')),
+  email         TEXT UNIQUE,
+  full_name     TEXT NOT NULL,
+  phone         TEXT,
+  date_of_birth DATE,               -- NULL for practitioners/admins
+  auth_provider TEXT,                -- 'apple', 'google', 'email', 'sms'
+  avatar_url    TEXT,
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS: users can only see users in their own clinic
+CREATE POLICY clinic_isolation ON users
+  USING (clinic_id = (SELECT clinic_id FROM users WHERE id = auth.uid()));
+```
+
+#### `devices` (Device Registry)
+```sql
+CREATE TABLE devices (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id             UUID REFERENCES clinics(id) NOT NULL,
+  device_mac            TEXT NOT NULL,                          -- e.g. '74:4D:BD:A0:A3:EC'
+  label                 TEXT NOT NULL,                          -- e.g. 'Room 2 — Recovery Bay'
+  room                  TEXT,
+  assigned_practitioner UUID REFERENCES users(id),
+  status                TEXT DEFAULT 'idle'
+                        CHECK (status IN ('idle', 'in_session', 'paused', 'maintenance', 'offline')),
+  last_session_id       UUID,
+  firmware              TEXT,
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(clinic_id, device_mac)
+);
+```
+
+#### `client_profiles`
+```sql
+CREATE TABLE client_profiles (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID REFERENCES users(id) NOT NULL UNIQUE,
+  clinic_id     UUID REFERENCES clinics(id) NOT NULL,
+
+  -- Recovery signals (updated each intake)
+  primary_regions     JSONB DEFAULT '[]',       -- e.g. ["right_shoulder", "lower_back"]
+  recovery_signals    JSONB DEFAULT '{}',       -- e.g. {"right_shoulder": {"type": "stiffness", "severity": 7, "trigger": "after_running"}}
+  goals               TEXT[],                   -- e.g. ['mobility', 'warm_up', 'recovery']
+  activity_context    TEXT,                     -- e.g. 'marathon_runner', 'desk_worker'
+  sensitivities       TEXT[],                   -- e.g. ['first_time', 'heat_sensitive']
+  notes               TEXT,
+
+  -- Wearable context (last sync)
+  wearable_hrv        NUMERIC,
+  wearable_strain     NUMERIC,
+  wearable_sleep_score NUMERIC,
+  wearable_last_sync  TIMESTAMPTZ,
+
+  created_at          TIMESTAMPTZ DEFAULT now(),
+  updated_at          TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### `assessments`
+```sql
+CREATE TABLE assessments (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id       UUID REFERENCES client_profiles(id) NOT NULL,
+  clinic_id       UUID REFERENCES clinics(id) NOT NULL,
+  practitioner_id UUID REFERENCES users(id),
+  assessment_type TEXT NOT NULL CHECK (assessment_type IN ('intake', 'pre_session', 'follow_up', 'reassessment')),
+
+  -- QuickPose data
+  quickpose_data  JSONB,            -- Full pose/ROM/angle/asymmetry output
+  rom_values      JSONB,            -- e.g. {"right_shoulder_flexion": 142, "left_shoulder_flexion": 158}
+  asymmetry_scores JSONB,           -- e.g. {"shoulder_flexion": 10.1, "hip_rotation": 3.2}
+  movement_quality_scores JSONB,    -- e.g. {"squat": 0.82, "hip_hinge": 0.71}
+  gait_metrics    JSONB,            -- e.g. {"cadence": 112, "step_symmetry": 0.94}
+
+  -- Vitals (if captured)
+  heart_rate      NUMERIC,
+  breath_rate     NUMERIC,
+  hrv_rmssd       NUMERIC,
+
+  -- Recovery signals (snapshot at time of assessment)
+  body_zones      JSONB,            -- Highlighted zones with signals
+  recovery_goal   TEXT,
+  subjective_baseline JSONB,        -- e.g. {"stiffness": 7, "soreness": 4, "mobility": 3}
+
+  -- Computed
+  recovery_map    JSONB,            -- The 60-second Recovery Map output
+  recovery_graph_delta JSONB,       -- Changes to the Recovery Graph
+
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### `sessions`
+```sql
+CREATE TABLE sessions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id         UUID REFERENCES client_profiles(id) NOT NULL,
+  clinic_id         UUID REFERENCES clinics(id) NOT NULL,
+  practitioner_id   UUID REFERENCES users(id) NOT NULL,
+  device_id         UUID REFERENCES devices(id) NOT NULL,
+  assessment_id     UUID REFERENCES assessments(id),
+
+  -- The exact SessionConfig that was sent to the device
+  session_config    JSONB NOT NULL,
+
+  -- Recommendation metadata
+  recommended_config  JSONB,        -- What the engine originally suggested
+  practitioner_edits  JSONB,        -- What the practitioner changed
+  recommendation_rationale TEXT,    -- LLM-generated explanation
+  confidence_score  NUMERIC,        -- 0.0 to 1.0
+
+  -- Lifecycle
+  status            TEXT DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'active', 'paused', 'completed', 'cancelled', 'error')),
+  started_at        TIMESTAMPTZ,
+  paused_at         TIMESTAMPTZ,
+  resumed_at        TIMESTAMPTZ,
+  completed_at      TIMESTAMPTZ,
+  total_duration_s  INTEGER,
+
+  -- Post-session
+  outcome           JSONB,          -- See outcomes schema below
+  practitioner_notes TEXT,
+  retest_values     JSONB,
+
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  updated_at        TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### `outcomes`
+```sql
+CREATE TABLE outcomes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id      UUID REFERENCES sessions(id) NOT NULL,
+  client_id       UUID REFERENCES client_profiles(id) NOT NULL,
+  recorded_by     TEXT NOT NULL CHECK (recorded_by IN ('client', 'practitioner')),
+
+  -- Subjective outcomes
+  stiffness_before    INTEGER CHECK (stiffness_before BETWEEN 0 AND 10),
+  stiffness_after     INTEGER CHECK (stiffness_after BETWEEN 0 AND 10),
+  soreness_before     INTEGER CHECK (soreness_before BETWEEN 0 AND 10),
+  soreness_after      INTEGER CHECK (soreness_after BETWEEN 0 AND 10),
+  mobility_improved   BOOLEAN,
+  session_effective   BOOLEAN,
+  readiness_improved  BOOLEAN,
+  repeat_intent       TEXT CHECK (repeat_intent IN ('yes', 'maybe', 'no')),
+
+  -- Objective outcomes (if re-tested)
+  rom_after           JSONB,        -- Post-session ROM values
+  rom_delta           JSONB,        -- Computed difference from assessment ROM
+
+  -- Free text
+  client_notes        TEXT,
+  practitioner_notes  TEXT,
+
+  created_at          TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### `recovery_graph`
+```sql
+CREATE TABLE recovery_graph (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id       UUID REFERENCES client_profiles(id) NOT NULL,
+  body_region     TEXT NOT NULL,    -- e.g. 'right_shoulder', 'lower_back', 'left_hip'
+  metric_type     TEXT NOT NULL,    -- e.g. 'rom_flexion', 'stiffness', 'asymmetry', 'recovery_score'
+  value           NUMERIC NOT NULL,
+  source          TEXT NOT NULL,    -- 'assessment', 'session_outcome', 'daily_checkin', 'wearable'
+  source_id       UUID,            -- Reference to assessment, session, or checkin
+  recorded_at     TIMESTAMPTZ DEFAULT now()
+);
+
+-- Index for fast client + region + time queries
+CREATE INDEX idx_recovery_graph_client_region
+  ON recovery_graph(client_id, body_region, recorded_at DESC);
+```
+
+#### `daily_checkins`
+```sql
+CREATE TABLE daily_checkins (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id       UUID REFERENCES client_profiles(id) NOT NULL,
+  checkin_type    TEXT NOT NULL CHECK (checkin_type IN ('daily', 'post_activity', 'pre_visit')),
+
+  -- Signals
+  overall_feeling   INTEGER CHECK (overall_feeling BETWEEN 1 AND 5),
+  target_regions    JSONB,          -- Body regions with current status
+  activity_since_last TEXT,         -- What they did since last checkin
+  recovery_score    NUMERIC,        -- Computed
+
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 6.2 TypeScript Types (shared between iOS bridge and backend)
+
+```typescript
+// === Core enums ===
+
+type UserRole = 'client' | 'practitioner' | 'admin';
+type DeviceStatus = 'idle' | 'in_session' | 'paused' | 'maintenance' | 'offline';
+type SessionStatus = 'pending' | 'active' | 'paused' | 'completed' | 'cancelled' | 'error';
+type AssessmentType = 'intake' | 'pre_session' | 'follow_up' | 'reassessment';
+type RecoveryGoal = 'mobility' | 'warm_up' | 'recovery' | 'relaxation' | 'performance_prep';
+type RecoverySignalType = 'stiffness' | 'soreness' | 'tightness' | 'restriction' | 'guarding';
+type ActivityTrigger = 'morning' | 'after_running' | 'after_lifting' | 'post_travel' | 'post_training' | 'evening' | 'general';
+
+// === Body regions ===
+
+type BodyRegion =
+  | 'right_shoulder' | 'left_shoulder'
+  | 'right_hip' | 'left_hip'
+  | 'lower_back' | 'upper_back'
+  | 'right_knee' | 'left_knee'
+  | 'neck'
+  | 'right_calf' | 'left_calf'
+  | 'right_arm' | 'left_arm'
+  | 'right_foot' | 'left_foot';
+
+// === Recovery signal ===
+
+interface RecoverySignal {
+  region: BodyRegion;
+  type: RecoverySignalType;
+  severity: number;          // 1–10
+  trigger: ActivityTrigger;
+  notes?: string;
+}
+
+// === QuickPose output ===
+
+interface QuickPoseResult {
+  landmarks: Array<{ x: number; y: number; z: number; visibility: number }>;  // 33 points
+  jointAngles: Record<string, number>;      // e.g. { "right_shoulder_flexion": 142 }
+  romValues: Record<string, number>;        // Same structure, normalized to ROM
+  asymmetryScores: Record<string, number>;  // e.g. { "shoulder_flexion": 10.1 }
+  movementQuality: Record<string, number>;  // e.g. { "squat": 0.82 }
+  gaitMetrics?: {
+    cadence: number;
+    stepSymmetry: number;
+    stepLength: number;
+  };
+  capturedAt: string;  // ISO 8601
+}
+
+// === Recovery Map ===
+
+interface RecoveryMap {
+  clientId: string;
+  highlightedRegions: Array<{
+    region: BodyRegion;
+    severity: number;
+    signalType: RecoverySignalType;
+    romDelta?: number;          // Compared to last assessment
+    asymmetryFlag: boolean;
+    compensationHint?: string;  // e.g. "Likely compensating from lower back"
+  }>;
+  wearableContext?: {
+    hrv: number;
+    strain: number;
+    sleepScore: number;
+    lastSync: string;
+  };
+  priorSessions: Array<{
+    date: string;
+    config: SessionConfigSummary;
+    outcomeRating: number;
+  }>;
+  suggestedGoal: RecoveryGoal;
+  generatedAt: string;
+}
+
+// === SessionConfig (for MQTT API) ===
+
+type ModalityFunc =
+  | 'leftColdBlue' | 'leftHotRed'
+  | 'rightColdBlue' | 'rightHotRed';
+
+type PlayCmd = 1 | 2 | 3 | 4;  // 1=Start, 2=Pause, 3=Stop, 4=Resume
+
+interface SessionConfig {
+  // Device addressing
+  mac: string;                     // e.g. "74:4D:BD:A0:A3:EC"
+
+  // Session envelope
+  sessionCount: number;
+  sessionPause: number;
+  sDelay: number;
+
+  // Cycle choreography
+  cycle1: number;
+  cycle5: number;
+  edgeCycleDuration: number;       // minutes; 9 = standard session
+  cycleRepetitions: number[];
+  cycleDurations: number[];
+  cyclePauses: number[];
+  pauseIntervals: number[];
+
+  // Per-pad modality sequences
+  leftFuncs: ModalityFunc[];
+  rightFuncs: ModalityFunc[];
+
+  // Thermal intensity arrays (PWM)
+  pwmValues: {
+    hot: [number, number, number];
+    cold: [number, number, number];
+  };
+
+  // Lifecycle
+  playCmd: PlayCmd;
+  led: 0 | 1;                     // Photobiomodulation toggle
+
+  // Thermal contrast & vibration
+  hotDrop: number;
+  coldDrop: number;
+  vibMin: number;
+  vibMax: number;
+
+  // Computed
+  totalDuration: number;           // seconds
+}
+
+// === Safe Envelope ===
+
+interface SafeEnvelope {
+  pwmHotMin: number;       pwmHotMax: number;
+  pwmColdMin: number;      pwmColdMax: number;
+  vibMinFloor: number;     vibMinCeiling: number;
+  vibMaxFloor: number;     vibMaxCeiling: number;
+  hotDropMin: number;      hotDropMax: number;
+  coldDropMin: number;     coldDropMax: number;
+  edgeCycleDurationMin: number;  edgeCycleDurationMax: number;
+}
+
+// Region-specific overrides
+const SAFE_ENVELOPES: Record<string, Partial<SafeEnvelope>> = {
+  _default: {
+    pwmHotMin: 30, pwmHotMax: 150,
+    pwmColdMin: 100, pwmColdMax: 255,
+    vibMinFloor: 10, vibMinCeiling: 50,
+    vibMaxFloor: 100, vibMaxCeiling: 255,
+    hotDropMin: 1, hotDropMax: 10,
+    coldDropMin: 1, coldDropMax: 10,
+    edgeCycleDurationMin: 5, edgeCycleDurationMax: 15,
+  },
+  neck: {
+    pwmHotMax: 100,       // Tighter cap for sensitive region
+    vibMaxCeiling: 180,
+  },
+  lower_back: {
+    pwmHotMax: 120,
+    vibMaxCeiling: 200,
+  }
+};
+```
+
+> **CLARIFYING QUESTION [CQ-007]:** What are the actual safe PWM/vibration ranges for the Hydrawav3Pro device? The values above are conservative estimates. Should we ask Shiva at the workshop for canonical min/max values per parameter?
+
+> **CLARIFYING QUESTION [CQ-008]:** The example Start Session payload shows `edgeCycleDuration: 9` — is this always 9 minutes for the standard session, or can it be varied? How does `totalDuration: 426` (seconds = ~7.1 minutes) relate to `edgeCycleDuration: 9`?
+
+
+---
+
+## Phase 0: Project Scaffold & Environment Setup
+
+> **Goal:** Every agent can build, run, and deploy independently within 30 minutes.
+> **Owner:** Lead agent / DevOps
+> **Estimated time:** 1–2 hours
+> **Dependencies:** None (this is the first phase)
+
+### 0.1 Repository Structure
+
+```
+hydrascan/
+├── ios/                            # Xcode project (SwiftUI)
+│   ├── HydraScan/
+│   │   ├── App/
+│   │   │   ├── HydraScanApp.swift
+│   │   │   └── ContentView.swift
+│   │   ├── Models/
+│   │   │   ├── User.swift
+│   │   │   ├── ClientProfile.swift
+│   │   │   ├── Assessment.swift
+│   │   │   ├── Session.swift
+│   │   │   ├── Outcome.swift
+│   │   │   ├── RecoveryGraph.swift
+│   │   │   ├── Device.swift
+│   │   │   └── SessionConfig.swift
+│   │   ├── Views/
+│   │   │   ├── Auth/
+│   │   │   │   ├── LoginView.swift
+│   │   │   │   └── OnboardingView.swift
+│   │   │   ├── Client/
+│   │   │   │   ├── IntakeView.swift
+│   │   │   │   ├── BodyMapView.swift
+│   │   │   │   ├── QuickPoseCaptureView.swift
+│   │   │   │   ├── PostSessionView.swift
+│   │   │   │   ├── RecoveryScoreView.swift
+│   │   │   │   └── CheckInView.swift
+│   │   │   ├── Practitioner/
+│   │   │   │   ├── DashboardView.swift
+│   │   │   │   ├── RecoveryMapView.swift
+│   │   │   │   ├── ProtocolRecommendationView.swift
+│   │   │   │   ├── DeviceSelectionView.swift
+│   │   │   │   ├── LiveSessionView.swift
+│   │   │   │   ├── OutcomeEntryView.swift
+│   │   │   │   └── ClientTrendsView.swift
+│   │   │   └── Admin/
+│   │   │       ├── ClinicSettingsView.swift
+│   │   │       ├── DeviceRegistryView.swift
+│   │   │       └── AnalyticsDashboardView.swift
+│   │   ├── Services/
+│   │   │   ├── AuthService.swift
+│   │   │   ├── SupabaseService.swift
+│   │   │   ├── HydrawavService.swift       # MQTT proxy calls
+│   │   │   ├── QuickPoseService.swift
+│   │   │   ├── HealthKitService.swift
+│   │   │   └── RecoveryEngineService.swift
+│   │   ├── Components/
+│   │   │   ├── BodyMapCanvas.swift
+│   │   │   ├── RecoveryScoreCard.swift
+│   │   │   ├── SessionConfigEditor.swift
+│   │   │   ├── SafeRangeSlider.swift
+│   │   │   └── TrendChart.swift
+│   │   └── Utils/
+│   │       ├── Constants.swift
+│   │       ├── LanguageGuardrails.swift    # Enforce wellness-only terminology
+│   │       └── SessionConfigSerializer.swift
+│   └── HydraScan.xcodeproj
+│
+├── backend/                         # Supabase Edge Functions + migrations
+│   ├── supabase/
+│   │   ├── config.toml
+│   │   ├── migrations/
+│   │   │   ├── 001_create_clinics.sql
+│   │   │   ├── 002_create_users.sql
+│   │   │   ├── 003_create_devices.sql
+│   │   │   ├── 004_create_client_profiles.sql
+│   │   │   ├── 005_create_assessments.sql
+│   │   │   ├── 006_create_sessions.sql
+│   │   │   ├── 007_create_outcomes.sql
+│   │   │   ├── 008_create_recovery_graph.sql
+│   │   │   ├── 009_create_daily_checkins.sql
+│   │   │   └── 010_create_rls_policies.sql
+│   │   ├── functions/
+│   │   │   ├── hydrawav-auth/index.ts         # Proxy: login to Hydrawav3 API
+│   │   │   ├── hydrawav-mqtt/index.ts         # Proxy: publish MQTT commands
+│   │   │   ├── recovery-engine/index.ts       # Recommendation engine
+│   │   │   ├── safe-envelope/index.ts         # Validate SessionConfig
+│   │   │   ├── session-lifecycle/index.ts     # Start/Pause/Resume/Stop orchestration
+│   │   │   ├── recovery-score/index.ts        # Compute recovery score
+│   │   │   ├── explanation/index.ts           # LLM-powered explanations
+│   │   │   └── trend-analyzer/index.ts        # Outcome trend computation
+│   │   └── seed/
+│   │       ├── clinics.sql
+│   │       ├── users.sql
+│   │       ├── devices.sql
+│   │       ├── client_profiles.sql
+│   │       ├── mock_assessments.sql
+│   │       ├── mock_sessions.sql
+│   │       └── mock_outcomes.sql
+│   └── package.json
+│
+├── web/                             # Practitioner web dashboard (if not iPad-only)
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   └── services/
+│   └── package.json
+│
+├── shared/                          # Shared types and constants
+│   ├── types/
+│   │   ├── session-config.ts
+│   │   ├── recovery-map.ts
+│   │   ├── safe-envelope.ts
+│   │   └── index.ts
+│   └── constants/
+│       ├── body-regions.ts
+│       ├── safe-ranges.ts
+│       └── language-guardrails.ts
+│
+├── docs/
+│   ├── HydraScan_Final_Concept_Overview.docx
+│   ├── MQTT_API_Reference.md
+│   └── Demo_Script.md
+│
+└── README.md
+```
+
+### 0.2 Environment Setup Tasks
+
+| Task | Command / Action | Verification |
+|------|-----------------|-------------|
+| Create monorepo | `mkdir hydrascan && cd hydrascan && git init` | `git status` shows clean repo |
+| iOS project | Create Xcode project targeting iOS 17.0+, SwiftUI lifecycle | Project builds in Xcode |
+| Add QuickPose SPM | In Xcode: File → Add Package → QuickPose URL. Import `QuickPoseCore`, `QuickPoseMPFull`, `QuickPoseCamera`, `QuickPoseSwiftUI` | `import QuickPoseCore` compiles |
+| Supabase project | `npx supabase init` in `backend/` directory. Create Supabase project at `supabase.com` | `npx supabase status` shows connection |
+| Run migrations | `npx supabase db push` | All tables created in dashboard |
+| Seed mock data | `npx supabase db reset` (runs seed files) | Mock data visible in Supabase Table Editor |
+| Supabase Swift package | Add `supabase-swift` SPM package to iOS project | `import Supabase` compiles |
+| Environment variables | Create `.env` with `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `HYDRAWAV_API_BASE_URL`, `LLM_API_KEY` | Edge Functions can read env vars |
+| Test MQTT auth | `curl -X POST <base>/api/v1/auth/login -H 'Content-Type: application/json' -d '{"username":"annierae","password":"anniesturm","rememberMe":true}'` | Returns JWT tokens |
+
+> **CLARIFYING QUESTION [CQ-009]:** What is the Hydrawav3 API base URL? Is it `https://www.hydrawav3.studio` or a separate API host? This must be confirmed at the Saturday workshop before any MQTT calls will work.
+
+### 0.3 Definition of Done (Phase 0)
+- [ ] Monorepo created with all directories
+- [ ] iOS project compiles with QuickPose and Supabase packages
+- [ ] Supabase project initialized with all migrations applied
+- [ ] Mock data seeded
+- [ ] MQTT auth endpoint tested successfully (or noted as pending workshop credentials)
+- [ ] All agents can pull the repo and run independently
+
+---
+
+## Phase 1: Identity, Auth & Multi-Tenant Backend
+
+> **Goal:** Users can sign in, be assigned to a clinic, and have role-based access. The Hydrawav3 API auth flow is proxied through the backend.
+> **Owner:** Backend agent + iOS agent (auth UI)
+> **Estimated time:** 3–4 hours
+> **Dependencies:** Phase 0
+> **Judging impact:** Platform Integration (20pts), Technical Feasibility (20pts)
+
+### 1.1 Supabase Auth Configuration
+
+**Auth providers to enable:**
+- Email (magic link)
+- Apple (Sign in with Apple — required for App Store submission)
+- Google (optional)
+
+**Implementation:**
+
+```typescript
+// backend/supabase/functions/hydrawav-auth/index.ts
+
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+
+// This function proxies login to the Hydrawav3 API and stores the JWT
+// so the backend can make MQTT calls on behalf of the clinic
+
+interface HydrawavLoginResponse {
+  JWT_REFRESH_TOKEN: string;
+  JWT_ACCESS_TOKEN: string;
+}
+
+serve(async (req) => {
+  const { username, password } = await req.json();
+
+  // Call Hydrawav3 auth endpoint
+  const hwResponse = await fetch(`${Deno.env.get('HYDRAWAV_API_BASE_URL')}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, rememberMe: true }),
+  });
+
+  if (!hwResponse.ok) {
+    return new Response(JSON.stringify({ error: 'Hydrawav3 auth failed' }), { status: 401 });
+  }
+
+  const tokens: HydrawavLoginResponse = await hwResponse.json();
+
+  // Store tokens securely in Supabase (encrypted at rest)
+  // These are clinic-level credentials, not per-user
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  // Upsert clinic's Hydrawav3 credentials
+  await supabase.from('clinic_hw_tokens').upsert({
+    clinic_id: req.headers.get('x-clinic-id'),
+    access_token: tokens.JWT_ACCESS_TOKEN,
+    refresh_token: tokens.JWT_REFRESH_TOKEN,
+    updated_at: new Date().toISOString(),
+  });
+
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+});
+```
+
+### 1.2 iOS Auth Flow
+
+```swift
+// ios/HydraScan/Services/AuthService.swift
+
+import Supabase
+import AuthenticationServices  // Sign in with Apple
+
+class AuthService: ObservableObject {
+    @Published var currentUser: User?
+    @Published var isAuthenticated = false
+
+    private let supabase: SupabaseClient
+
+    init() {
+        self.supabase = SupabaseClient(
+            supabaseURL: URL(string: Config.supabaseURL)!,
+            supabaseKey: Config.supabaseAnonKey
+        )
+    }
+
+    // Sign in with Apple
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async throws {
+        guard let identityToken = credential.identityToken,
+              let tokenString = String(data: identityToken, encoding: .utf8) else {
+            throw AuthError.invalidCredential
+        }
+
+        let session = try await supabase.auth.signInWithIdToken(
+            credentials: .init(provider: .apple, idToken: tokenString)
+        )
+
+        // Fetch or create user profile
+        await loadUserProfile(authId: session.user.id)
+    }
+
+    // Email magic link
+    func signInWithEmail(_ email: String) async throws {
+        try await supabase.auth.signInWithOTP(email: email)
+    }
+
+    // Verify OTP
+    func verifyOTP(email: String, token: String) async throws {
+        let session = try await supabase.auth.verifyOTP(
+            email: email, token: token, type: .magiclink
+        )
+        await loadUserProfile(authId: session.user.id)
+    }
+
+    private func loadUserProfile(authId: UUID) async {
+        do {
+            let user: User = try await supabase.from("users")
+                .select()
+                .eq("id", value: authId.uuidString)
+                .single()
+                .execute()
+                .value
+            self.currentUser = user
+            self.isAuthenticated = true
+        } catch {
+            // User doesn't exist yet — needs onboarding
+            self.isAuthenticated = false
+        }
+    }
+}
+```
+
+### 1.3 User Onboarding Flow
+
+After auth, if the user doesn't have a profile:
+
+1. **Client path:** Name → Clinic code → Role=client → Create `client_profiles` record
+2. **Practitioner path:** Invite link from admin → Name → Role=practitioner
+3. **Admin path:** Creates clinic → auto-assigned admin role
+
+### 1.4 Row-Level Security Policies
+
+```sql
+-- Users can only see data in their own clinic
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outcomes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recovery_graph ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_checkins ENABLE ROW LEVEL SECURITY;
+
+-- Example policy: practitioners see all clients in their clinic
+CREATE POLICY "practitioners_see_clinic_clients" ON client_profiles
+  FOR SELECT
+  USING (
+    clinic_id = (
+      SELECT clinic_id FROM users WHERE id = auth.uid()
+    )
+  );
+
+-- Example policy: clients see only their own data
+CREATE POLICY "clients_see_own_data" ON assessments
+  FOR SELECT
+  USING (
+    client_id = (
+      SELECT id FROM client_profiles WHERE user_id = auth.uid()
+    )
+  );
+```
+
+### 1.5 Definition of Done (Phase 1)
+- [ ] Supabase auth configured with Email and Apple providers
+- [ ] iOS login screen renders with Sign in with Apple button + email option
+- [ ] Successful auth creates a Supabase session
+- [ ] User profile loaded after auth (or redirected to onboarding)
+- [ ] RLS policies prevent cross-clinic data access (test with two clinic seeds)
+- [ ] Hydrawav3 API auth proxy function deployed and tested
+- [ ] Hydrawav3 JWT tokens stored in backend for later MQTT calls
+
+---
+
+## Phase 2: Device Registry & Hydrawav3 MQTT Integration
+
+> **Goal:** Practitioners can see registered Hydrawav3Pro devices, select a target device, and send lifecycle commands (start/pause/resume/stop) through the MQTT API. This phase establishes the critical integration with real hardware.
+> **Owner:** Backend agent
+> **Estimated time:** 3–4 hours
+> **Dependencies:** Phase 1 (auth tokens available)
+> **Judging impact:** Platform Integration (20pts), Live Data Demo bonus (+5pts)
+
+### 2.1 Device Registry Implementation
+
+The Device Registry is a first-class entity inside each clinic workspace. It maps physical Hydrawav3Pro units to rooms, practitioners, and lifecycle states.
+
+**Admin UI for registering devices:**
+```
+[Add Device]
+  Label: "Room 2 — Recovery Bay"
+  MAC Address: "74:4D:BD:A0:A3:EC"
+  Room: "Room 2"
+  → Save
+```
+
+**Backend: devices CRUD**
+
+```typescript
+// backend/supabase/functions/device-registry/index.ts
+
+// POST: Register a new device
+// GET: List clinic devices with current status
+// PATCH: Update device status, assigned practitioner
+// DELETE: Remove device from registry
+
+// Device status state machine:
+//   idle → in_session (on Start)
+//   in_session → paused (on Pause)
+//   paused → in_session (on Resume)
+//   in_session → idle (on Stop or session complete)
+//   paused → idle (on Stop)
+//   any → maintenance (admin action)
+//   any → offline (heartbeat timeout)
+```
+
+### 2.2 MQTT Proxy Function
+
+This is the critical integration point. The backend proxies MQTT commands to the Hydrawav3 API, handling auth, serialization, and logging.
+
+```typescript
+// backend/supabase/functions/hydrawav-mqtt/index.ts
+
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+interface MqttPublishRequest {
+  clinicId: string;
+  deviceId: string;
+  sessionConfig: SessionConfig;
+  command: 'start' | 'pause' | 'resume' | 'stop';
+}
+
+serve(async (req) => {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  const { clinicId, deviceId, sessionConfig, command } = await req.json() as MqttPublishRequest;
+
+  // 1. Fetch clinic's Hydrawav3 JWT token
+  const { data: tokenData } = await supabase
+    .from('clinic_hw_tokens')
+    .select('access_token')
+    .eq('clinic_id', clinicId)
+    .single();
+
+  if (!tokenData?.access_token) {
+    return new Response(JSON.stringify({ error: 'No Hydrawav3 credentials for this clinic' }), { status: 401 });
+  }
+
+  // 2. Fetch device MAC from registry
+  const { data: device } = await supabase
+    .from('devices')
+    .select('device_mac, status')
+    .eq('id', deviceId)
+    .eq('clinic_id', clinicId)
+    .single();
+
+  if (!device) {
+    return new Response(JSON.stringify({ error: 'Device not found' }), { status: 404 });
+  }
+
+  // 3. Build the MQTT payload
+  let payload: Record<string, any>;
+
+  switch (command) {
+    case 'start':
+      // Validate against safe envelope FIRST
+      const validation = validateSafeEnvelope(sessionConfig);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({
+          error: 'SessionConfig outside safe envelope',
+          violations: validation.violations
+        }), { status: 400 });
+      }
+      payload = { ...sessionConfig, mac: device.device_mac, playCmd: 1 };
+      break;
+    case 'pause':
+      payload = { mac: device.device_mac, playCmd: 2 };
+      break;
+    case 'stop':
+      payload = { mac: device.device_mac, playCmd: 3 };
+      break;
+    case 'resume':
+      payload = { mac: device.device_mac, playCmd: 4 };
+      break;
+    default:
+      return new Response(JSON.stringify({ error: 'Invalid command' }), { status: 400 });
+  }
+
+  // 4. CRITICAL: Stringify the payload (Hydrawav3 API requires string, not object)
+  const stringifiedPayload = JSON.stringify(payload);
+
+  // 5. Publish to Hydrawav3 MQTT API
+  const mqttResponse = await fetch(
+    `${Deno.env.get('HYDRAWAV_API_BASE_URL')}/api/v1/mqtt/publish`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': tokenData.access_token,  // Already "Bearer <token>"
+      },
+      body: JSON.stringify({
+        topic: 'HydraWav3Pro/config',
+        payload: stringifiedPayload,
+      }),
+    }
+  );
+
+  // 6. Update device status in registry
+  const newStatus = {
+    start: 'in_session',
+    pause: 'paused',
+    resume: 'in_session',
+    stop: 'idle',
+  }[command];
+
+  await supabase
+    .from('devices')
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .eq('id', deviceId);
+
+  // 7. Log the command for audit trail
+  await supabase.from('mqtt_command_log').insert({
+    clinic_id: clinicId,
+    device_id: deviceId,
+    command,
+    payload: payload,
+    mqtt_response_status: mqttResponse.status,
+    created_at: new Date().toISOString(),
+  });
+
+  if (!mqttResponse.ok) {
+    const errorBody = await mqttResponse.text();
+    return new Response(JSON.stringify({
+      error: 'MQTT publish failed',
+      status: mqttResponse.status,
+      detail: errorBody,
+    }), { status: 502 });
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    command,
+    deviceMac: device.device_mac,
+    newStatus,
+  }), { status: 200 });
+});
+
+// Safe envelope validation
+function validateSafeEnvelope(config: SessionConfig): { valid: boolean; violations: string[] } {
+  const violations: string[] = [];
+  const envelope = SAFE_ENVELOPES._default;
+
+  // PWM hot values
+  for (const v of config.pwmValues.hot) {
+    if (v < envelope.pwmHotMin || v > envelope.pwmHotMax) {
+      violations.push(`pwmValues.hot value ${v} outside range [${envelope.pwmHotMin}, ${envelope.pwmHotMax}]`);
+    }
+  }
+
+  // PWM cold values
+  for (const v of config.pwmValues.cold) {
+    if (v < envelope.pwmColdMin || v > envelope.pwmColdMax) {
+      violations.push(`pwmValues.cold value ${v} outside range [${envelope.pwmColdMin}, ${envelope.pwmColdMax}]`);
+    }
+  }
+
+  // Vibration
+  if (config.vibMin < envelope.vibMinFloor || config.vibMin > envelope.vibMinCeiling) {
+    violations.push(`vibMin ${config.vibMin} outside range [${envelope.vibMinFloor}, ${envelope.vibMinCeiling}]`);
+  }
+  if (config.vibMax < envelope.vibMaxFloor || config.vibMax > envelope.vibMaxCeiling) {
+    violations.push(`vibMax ${config.vibMax} outside range [${envelope.vibMaxFloor}, ${envelope.vibMaxCeiling}]`);
+  }
+
+  // Duration
+  if (config.edgeCycleDuration < envelope.edgeCycleDurationMin || config.edgeCycleDuration > envelope.edgeCycleDurationMax) {
+    violations.push(`edgeCycleDuration ${config.edgeCycleDuration} outside range [${envelope.edgeCycleDurationMin}, ${envelope.edgeCycleDurationMax}]`);
+  }
+
+  return { valid: violations.length === 0, violations };
+}
+```
+
+### 2.3 Simulated Device Mode
+
+If no physical device is available (e.g., before the Saturday workshop), the MQTT proxy falls back to a simulated mode:
+
+```typescript
+// If HYDRAWAV_API_BASE_URL is not set or is 'simulation',
+// the proxy logs the command and returns a simulated success response.
+// The practitioner UI shows a visible "SIMULATION" badge.
+
+const isSimulation = !Deno.env.get('HYDRAWAV_API_BASE_URL') ||
+                     Deno.env.get('HYDRAWAV_API_BASE_URL') === 'simulation';
+
+if (isSimulation) {
+  // Log as simulation
+  await supabase.from('mqtt_command_log').insert({
+    ...logEntry,
+    simulated: true,
+  });
+
+  // Still update device status normally
+  await supabase.from('devices').update({ status: newStatus }).eq('id', deviceId);
+
+  return new Response(JSON.stringify({
+    success: true,
+    simulated: true,
+    command,
+    deviceMac: device.device_mac,
+    newStatus,
+  }), { status: 200 });
+}
+```
+
+### 2.4 Definition of Done (Phase 2)
+- [ ] Device Registry CRUD: admin can add/edit/remove devices
+- [ ] Device list shows in practitioner UI with status badges
+- [ ] MQTT proxy successfully authenticates with Hydrawav3 API
+- [ ] Start command sends a full SessionConfig payload to a real device (or simulated)
+- [ ] Pause/Resume/Stop commands work and update device status
+- [ ] Safe envelope validation rejects out-of-range configs with clear error
+- [ ] MQTT command log stores every command for audit
+- [ ] Simulated device mode works when no API credentials are available
+
+---
+
+## Phase 3: QuickPose Assessment Pipeline (iOS)
+
+> **Goal:** The client can run a guided movement capture session using QuickPose on their iPhone. The app computes ROM, joint angles, asymmetry, and movement quality on-device and uploads a structured assessment to the backend.
+> **Owner:** iOS agent
+> **Estimated time:** 4–6 hours (largest phase for iOS)
+> **Dependencies:** Phase 0 (QuickPose SDK installed), Phase 1 (auth)
+> **Judging impact:** Practitioner Impact (25pts), Technical Feasibility (20pts), UX (15pts)
+
+### 3.1 Guided Capture Flow
+
+The client performs a sequence of guided movements. Each movement targets specific body regions and captures specific metrics.
+
+**Default assessment sequence (configurable by practitioner):**
+
+| # | Movement | Duration | Targets | Metrics captured |
+|---|----------|----------|---------|-----------------|
+| 1 | Standing front view | 5 seconds | Full body baseline | Posture, shoulder level, hip level, knee alignment |
+| 2 | Standing side view | 5 seconds | Spinal alignment | Forward head posture, thoracic curve, lumbar curve |
+| 3 | Shoulder flexion (both arms) | 10 seconds | Shoulders | Shoulder ROM, bilateral asymmetry |
+| 4 | Squat | 10 seconds | Hips, knees, ankles | Squat depth, knee tracking, trunk lean, ankle mobility |
+| 5 | Hip hinge | 8 seconds | Lower back, hips | Hamstring flexibility, hip ROM, lumbar flexion |
+| 6 | Single-leg balance (R) | 10 seconds | Right leg, core | Stability, ankle wobble, compensation |
+| 7 | Single-leg balance (L) | 10 seconds | Left leg, core | Stability, asymmetry vs right |
+
+**Total capture time: ~58 seconds** (under the 60-second clinic-compatible constraint)
+
+### 3.2 QuickPose Integration
+
+```swift
+// ios/HydraScan/Views/Client/QuickPoseCaptureView.swift
+
+import SwiftUI
+import QuickPoseCore
+import QuickPoseCamera
+import QuickPoseSwiftUI
+
+struct QuickPoseCaptureView: View {
+    @StateObject private var quickPose = QuickPose(sdkKey: Config.quickPoseKey)
+    @State private var currentStep: CaptureStep = .standingFront
+    @State private var capturedData: [CaptureStep: QuickPoseResult] = [:]
+    @State private var isCapturing = false
+    @State private var instruction = "Stand facing the camera with feet shoulder-width apart"
+
+    enum CaptureStep: Int, CaseIterable {
+        case standingFront, standingSide, shoulderFlexion, squat, hipHinge, balanceRight, balanceLeft
+
+        var title: String {
+            switch self {
+            case .standingFront: return "Front View"
+            case .standingSide: return "Side View"
+            case .shoulderFlexion: return "Shoulder Flexion"
+            case .squat: return "Squat"
+            case .hipHinge: return "Hip Hinge"
+            case .balanceRight: return "Balance (Right)"
+            case .balanceLeft: return "Balance (Left)"
+            }
+        }
+
+        var instruction: String {
+            switch self {
+            case .standingFront: return "Stand facing the camera, feet shoulder-width apart"
+            case .standingSide: return "Turn to your right side, stand naturally"
+            case .shoulderFlexion: return "Raise both arms overhead slowly"
+            case .squat: return "Perform a slow squat, as deep as comfortable"
+            case .hipHinge: return "Bend forward at the hips, keep knees slightly bent"
+            case .balanceRight: return "Stand on your right leg, arms at your sides"
+            case .balanceLeft: return "Stand on your left leg, arms at your sides"
+            }
+        }
+
+        var duration: TimeInterval {
+            switch self {
+            case .standingFront, .standingSide: return 5
+            case .shoulderFlexion, .balanceRight, .balanceLeft: return 10
+            case .squat: return 10
+            case .hipHinge: return 8
+            }
+        }
+
+        var features: [QuickPose.Feature] {
+            // Configure QuickPose features per step
+            switch self {
+            case .standingFront, .standingSide:
+                return [.overlay(.skeleton)]
+            case .shoulderFlexion:
+                return [
+                    .rangeOfMotion(.shoulder(side: .right, direction: .flexion)),
+                    .rangeOfMotion(.shoulder(side: .left, direction: .flexion)),
+                    .overlay(.skeleton)
+                ]
+            case .squat:
+                return [
+                    .rangeOfMotion(.knee(side: .right, direction: .flexion)),
+                    .rangeOfMotion(.knee(side: .left, direction: .flexion)),
+                    .rangeOfMotion(.hip(side: .right, direction: .flexion)),
+                    .overlay(.skeleton)
+                ]
+            case .hipHinge:
+                return [
+                    .rangeOfMotion(.hip(side: .right, direction: .flexion)),
+                    .overlay(.skeleton)
+                ]
+            case .balanceRight, .balanceLeft:
+                return [.overlay(.skeleton)]
+            }
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            // Camera feed with QuickPose overlay
+            QuickPoseCameraView(quickPose: quickPose)
+                .overlay(
+                    QuickPoseOverlayView(quickPose: quickPose)
+                )
+
+            VStack {
+                // Step indicator
+                HStack {
+                    ForEach(CaptureStep.allCases, id: \.rawValue) { step in
+                        Circle()
+                            .fill(step == currentStep ? Color.blue : Color.gray.opacity(0.3))
+                            .frame(width: 10, height: 10)
+                    }
+                }
+                .padding(.top, 60)
+
+                Text(currentStep.title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Text(currentStep.instruction)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Spacer()
+
+                // Capture button / progress
+                if isCapturing {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                } else {
+                    Button("Capture") {
+                        startCapture()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+            }
+        }
+        .onAppear {
+            quickPose.start(features: currentStep.features)
+        }
+    }
+
+    private func startCapture() {
+        isCapturing = true
+        // Start recording QuickPose data for the duration
+        // After duration, compute metrics and move to next step
+        DispatchQueue.main.asyncAfter(deadline: .now() + currentStep.duration) {
+            // Extract results from QuickPose
+            let result = extractQuickPoseResult()
+            capturedData[currentStep] = result
+
+            // Move to next step or finish
+            if let nextStep = CaptureStep(rawValue: currentStep.rawValue + 1) {
+                currentStep = nextStep
+                quickPose.update(features: nextStep.features)
+            } else {
+                finishCapture()
+            }
+            isCapturing = false
+        }
+    }
+
+    private func extractQuickPoseResult() -> QuickPoseResult {
+        // Extract landmarks, compute angles, ROM, asymmetry
+        // This is the key computational step
+        // QuickPose provides real-time feedback — we aggregate over the capture window
+        // Implementation depends on exact QuickPose API surface
+        // ...
+        return QuickPoseResult(/* ... */)
+    }
+
+    private func finishCapture() {
+        // Compile all step results into a single Assessment
+        let assessment = compileAssessment(from: capturedData)
+        // Upload to backend
+        Task {
+            await uploadAssessment(assessment)
+        }
+    }
+}
+```
+
+> **CLARIFYING QUESTION [CQ-010]:** What is the exact QuickPose Swift API for extracting joint angle values and ROM measurements from the real-time pose data? The code above uses `.rangeOfMotion(.shoulder(side: .right, direction: .flexion))` as a placeholder — need to verify the actual API signature from QuickPose docs.
+
+> **CLARIFYING QUESTION [CQ-011]:** Does QuickPose provide aggregated metrics over a time window, or do we need to manually sample landmarks at each frame and compute averages/maximums ourselves?
+
+### 3.3 Assessment Computation
+
+```swift
+// ios/HydraScan/Services/QuickPoseService.swift
+
+class QuickPoseService {
+
+    /// Compute ROM values from raw landmark data
+    static func computeROM(landmarks: [[Landmark]]) -> [String: Double] {
+        var rom: [String: Double] = [:]
+
+        // Shoulder flexion: angle between upper arm and torso
+        // Use landmarks: shoulder, elbow, hip
+        rom["right_shoulder_flexion"] = maxAngle(
+            landmarks: landmarks,
+            jointA: .rightShoulder, jointB: .rightElbow, reference: .rightHip
+        )
+        rom["left_shoulder_flexion"] = maxAngle(
+            landmarks: landmarks,
+            jointA: .leftShoulder, jointB: .leftElbow, reference: .leftHip
+        )
+
+        // Knee flexion: angle between thigh and shin
+        rom["right_knee_flexion"] = minAngle(
+            landmarks: landmarks,
+            jointA: .rightHip, jointB: .rightKnee, jointC: .rightAnkle
+        )
+        rom["left_knee_flexion"] = minAngle(
+            landmarks: landmarks,
+            jointA: .leftHip, jointB: .leftKnee, jointC: .leftAnkle
+        )
+
+        // Hip flexion: angle between torso and thigh
+        rom["right_hip_flexion"] = maxAngle(
+            landmarks: landmarks,
+            jointA: .rightShoulder, jointB: .rightHip, jointC: .rightKnee
+        )
+
+        return rom
+    }
+
+    /// Compute asymmetry scores
+    static func computeAsymmetry(rom: [String: Double]) -> [String: Double] {
+        var asymmetry: [String: Double] = [:]
+
+        let pairs: [(String, String, String)] = [
+            ("right_shoulder_flexion", "left_shoulder_flexion", "shoulder_flexion"),
+            ("right_knee_flexion", "left_knee_flexion", "knee_flexion"),
+            ("right_hip_flexion", "left_hip_flexion", "hip_flexion"),
+        ]
+
+        for (right, left, name) in pairs {
+            if let r = rom[right], let l = rom[left] {
+                let avg = (r + l) / 2.0
+                if avg > 0 {
+                    asymmetry[name] = abs(r - l) / avg * 100.0  // Percentage difference
+                }
+            }
+        }
+
+        return asymmetry
+    }
+
+    /// Compute angle between three landmarks (in degrees)
+    private static func computeAngle(a: CGPoint, b: CGPoint, c: CGPoint) -> Double {
+        let ba = CGPoint(x: a.x - b.x, y: a.y - b.y)
+        let bc = CGPoint(x: c.x - b.x, y: c.y - b.y)
+        let dot = ba.x * bc.x + ba.y * bc.y
+        let magBA = sqrt(ba.x * ba.x + ba.y * ba.y)
+        let magBC = sqrt(bc.x * bc.x + bc.y * bc.y)
+        let cosAngle = dot / (magBA * magBC)
+        return acos(max(-1, min(1, cosAngle))) * 180.0 / .pi
+    }
+}
+```
+
+### 3.4 Definition of Done (Phase 3)
+- [ ] QuickPose camera view renders with real-time skeleton overlay
+- [ ] Guided capture flow walks through all 7 movements with instructions
+- [ ] ROM values computed for shoulders, hips, knees
+- [ ] Asymmetry scores computed (bilateral comparison)
+- [ ] Movement quality scores computed for squat and hip hinge
+- [ ] Assessment uploaded to Supabase `assessments` table
+- [ ] Recovery Map generated from assessment data
+- [ ] Total capture time is under 60 seconds
+
+---
+
+## Phase 4: Recovery Intelligence Engine
+
+> **Goal:** Given an assessment and client history, generate a personalized Hydrawav3 SessionConfig with a confidence score and plain-language rationale.
+> **Owner:** Backend agent
+> **Estimated time:** 4–5 hours
+> **Dependencies:** Phase 3 (assessments exist in DB), Phase 2 (SessionConfig schema defined)
+> **Judging impact:** Practitioner Impact (25pts), Platform Integration (20pts), Loop Coverage bonus (+10pts)
+
+### 4.1 Recommendation Pipeline
+
+```
+Assessment + Client Profile + Session History + Outcomes + Wearables
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Rules Engine    │
+                    │                  │
+                    │  • Body region   │
+                    │    → pad mapping │
+                    │  • Goal → mode   │
+                    │  • Constraints   │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │  History Scorer  │
+                    │                  │
+                    │  • Prior configs │
+                    │  • Outcomes      │
+                    │  • Edits         │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │  Config Builder  │
+                    │                  │
+                    │  • SessionConfig │
+                    │  • Confidence    │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │  Safe Envelope   │
+                    │  Validator       │
+                    └────────┬─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │  LLM Explainer   │
+                    │                  │
+                    │  "This client    │
+                    │   responded best │
+                    │   to moderate    │
+                    │   intensity..."  │
+                    └──────────────────┘
+```
+
+### 4.2 Rules Engine: Body Region → Pad Mapping
+
+```typescript
+// shared/constants/pad-mapping.ts
+
+// Map body regions to recommended Sun/Moon pad placements
+// Sun (red) = warming, prepares tissue
+// Moon (blue) = cooling, supports recovery
+
+interface PadPlacement {
+  sunRegion: string;       // Where to place Sun pad
+  moonRegion: string;      // Where to place Moon pad
+  leftFuncs: ModalityFunc[];
+  rightFuncs: ModalityFunc[];
+  rationale: string;
+}
+
+const PAD_PLACEMENTS: Record<string, PadPlacement> = {
+  'right_shoulder': {
+    sunRegion: 'Right shoulder (anterior)',
+    moonRegion: 'Right upper back (posterior)',
+    leftFuncs: ['leftColdBlue', 'leftHotRed', 'leftColdBlue'],
+    rightFuncs: ['rightHotRed', 'rightColdBlue', 'rightHotRed'],
+    rationale: 'Sun pad warms the shoulder to promote circulation; Moon pad cools the upper back to support recovery and down-regulate tension.',
+  },
+  'lower_back': {
+    sunRegion: 'Lower back (lumbar)',
+    moonRegion: 'Abdomen or hip flexor',
+    leftFuncs: ['leftHotRed', 'leftColdBlue', 'leftHotRed'],
+    rightFuncs: ['rightColdBlue', 'rightHotRed', 'rightColdBlue'],
+    rationale: 'Sun pad warms the lower back to reduce muscular guarding; Moon pad cools the opposing side to create a thermal contrast gradient.',
+  },
+  'right_hip': {
+    sunRegion: 'Right hip (lateral)',
+    moonRegion: 'Lower back (contralateral)',
+    leftFuncs: ['leftColdBlue', 'leftHotRed', 'leftColdBlue'],
+    rightFuncs: ['rightHotRed', 'rightColdBlue', 'rightHotRed'],
+    rationale: 'Sun pad targets the restricted hip; Moon pad addresses likely upstream compensation in the lower back.',
+  },
+  // ... additional mappings for left_shoulder, left_hip, neck, knees, etc.
+};
+```
+
+### 4.3 Rules Engine: Goal → Mode Configuration
+
+```typescript
+// shared/constants/goal-modes.ts
+
+interface GoalMode {
+  edgeCycleDuration: number;
+  intensityProfile: 'gentle' | 'moderate' | 'intense';
+  pwmHot: [number, number, number];
+  pwmCold: [number, number, number];
+  vibMin: number;
+  vibMax: number;
+  led: 0 | 1;
+  rationale: string;
+}
+
+const GOAL_MODES: Record<RecoveryGoal, GoalMode> = {
+  'warm_up': {
+    edgeCycleDuration: 7,
+    intensityProfile: 'moderate',
+    pwmHot: [100, 100, 100],
+    pwmCold: [200, 200, 200],
+    vibMin: 20,
+    vibMax: 180,
+    led: 1,
+    rationale: 'Pre-activity warm-up: moderate thermal contrast to promote circulation, active photobiomodulation, moderate vibration.',
+  },
+  'recovery': {
+    edgeCycleDuration: 9,
+    intensityProfile: 'moderate',
+    pwmHot: [90, 90, 90],
+    pwmCold: [250, 250, 250],
+    vibMin: 15,
+    vibMax: 222,
+    led: 1,
+    rationale: 'Standard recovery: full thermal contrast, maximum vibro-acoustic range, 9-minute session to match documented field outcomes.',
+  },
+  'mobility': {
+    edgeCycleDuration: 9,
+    intensityProfile: 'intense',
+    pwmHot: [120, 120, 120],
+    pwmCold: [220, 220, 220],
+    vibMin: 25,
+    vibMax: 200,
+    led: 1,
+    rationale: 'Mobility focus: higher thermal intensity to open tissue, moderate vibration to reduce guarding.',
+  },
+  'relaxation': {
+    edgeCycleDuration: 9,
+    intensityProfile: 'gentle',
+    pwmHot: [70, 70, 70],
+    pwmCold: [250, 250, 250],
+    vibMin: 10,
+    vibMax: 150,
+    led: 1,
+    rationale: 'Parasympathetic activation: gentle thermal contrast, lower vibration to promote calming, full photobiomodulation.',
+  },
+  'performance_prep': {
+    edgeCycleDuration: 7,
+    intensityProfile: 'intense',
+    pwmHot: [130, 130, 130],
+    pwmCold: [200, 200, 200],
+    vibMin: 30,
+    vibMax: 220,
+    led: 1,
+    rationale: 'Performance preparation: strong thermal activation, higher vibration to wake tissue, shorter session for pre-competition use.',
+  },
+};
+```
+
+### 4.4 History Scorer
+
+```typescript
+// backend/supabase/functions/recovery-engine/history-scorer.ts
+
+interface HistoryScore {
+  bestConfig: Partial<SessionConfig> | null;
+  outcomeAverage: number;
+  sessionCount: number;
+  confidence: number;           // 0.0 (no history) to 1.0 (strong prior evidence)
+  adjustments: string[];        // e.g. ["Reduced intensity based on last 2 sessions"]
+}
+
+async function scoreHistory(
+  clientId: string,
+  targetRegion: BodyRegion,
+  goal: RecoveryGoal,
+  supabase: SupabaseClient
+): Promise<HistoryScore> {
+
+  // Fetch last 5 sessions for this client + region + goal
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('session_config, outcome:outcomes(*)')
+    .eq('client_id', clientId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+    .limit(5);
+
+  if (!sessions || sessions.length === 0) {
+    return {
+      bestConfig: null,
+      outcomeAverage: 0,
+      sessionCount: 0,
+      confidence: 0.0,
+      adjustments: ['No prior sessions — using default protocol for this goal.'],
+    };
+  }
+
+  // Score each session by outcome effectiveness
+  const scored = sessions.map(s => {
+    const outcome = s.outcome?.[0];
+    if (!outcome) return { config: s.session_config, score: 0.5 };
+
+    let score = 0;
+    if (outcome.mobility_improved) score += 0.3;
+    if (outcome.session_effective) score += 0.3;
+    if (outcome.stiffness_after < outcome.stiffness_before) score += 0.2;
+    if (outcome.repeat_intent === 'yes') score += 0.2;
+
+    return { config: s.session_config, score };
+  });
+
+  // Find best-performing config
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+
+  const avgScore = scored.reduce((sum, s) => sum + s.score, 0) / scored.length;
+
+  return {
+    bestConfig: best.config,
+    outcomeAverage: avgScore,
+    sessionCount: sessions.length,
+    confidence: Math.min(1.0, sessions.length * 0.2),  // 5+ sessions = 1.0 confidence
+    adjustments: generateAdjustments(scored),
+  };
+}
+```
+
+### 4.5 LLM Explanation Service
+
+```typescript
+// backend/supabase/functions/explanation/index.ts
+
+async function generateExplanation(
+  recommendation: {
+    config: SessionConfig;
+    goal: RecoveryGoal;
+    targetRegion: BodyRegion;
+    confidence: number;
+    historyScore: HistoryScore;
+    romValues: Record<string, number>;
+    asymmetryScores: Record<string, number>;
+  }
+): Promise<string> {
+
+  const prompt = `You are a wellness recovery assistant for the Hydrawav3 platform.
+Generate a 2-3 sentence explanation of why this session protocol was recommended.
+
+RULES:
+- Use ONLY wellness/recovery language (never "treats", "diagnoses", "cures", "medical")
+- Say "supports" not "treats"
+- Say "recovery" and "wellness" not "clinical" or "medical"
+- Frame as practitioner decision support, not medical advice
+- Be specific about what data drove the recommendation
+
+Context:
+- Target region: ${recommendation.targetRegion}
+- Goal: ${recommendation.goal}
+- ROM values: ${JSON.stringify(recommendation.romValues)}
+- Asymmetry: ${JSON.stringify(recommendation.asymmetryScores)}
+- Prior sessions: ${recommendation.historyScore.sessionCount}
+- Best prior outcome score: ${recommendation.historyScore.outcomeAverage.toFixed(2)}
+- Confidence: ${(recommendation.confidence * 100).toFixed(0)}%
+
+Protocol:
+- Duration: ${recommendation.config.edgeCycleDuration} minutes
+- Thermal: hot PWM ${recommendation.config.pwmValues.hot[0]}, cold PWM ${recommendation.config.pwmValues.cold[0]}
+- Vibration: ${recommendation.config.vibMin}–${recommendation.config.vibMax}
+- LED: ${recommendation.config.led ? 'on' : 'off'}
+
+Respond with ONLY the explanation text, no headers or formatting.`;
+
+  // Call LLM API (Claude or OpenAI)
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+```
+
+### 4.6 Definition of Done (Phase 4)
+- [ ] Rules engine maps body regions to pad placements correctly
+- [ ] Goal mode configs generated for all 5 recovery goals
+- [ ] History scorer queries prior sessions and computes confidence
+- [ ] Config builder emits a complete, valid SessionConfig
+- [ ] Safe envelope validator catches out-of-range values
+- [ ] LLM explanation service generates wellness-appropriate rationale
+- [ ] End-to-end test: assessment → recommendation → SessionConfig + explanation
+- [ ] Confidence score visible in practitioner UI
+
+---
+
+## Phase 5: Practitioner Dashboard & Session Workflow
+
+> **Goal:** Practitioners can view the Recovery Map, review/edit the recommended protocol, select a device, launch a session, and control it in real time.
+> **Owner:** iOS agent (iPad) or Web agent
+> **Estimated time:** 4–5 hours
+> **Dependencies:** Phase 2 (device registry), Phase 3 (assessments), Phase 4 (recommendations)
+> **Judging impact:** Practitioner Impact (25pts), UX (15pts), Platform Integration (20pts)
+
+### 5.1 Recovery Map View
+
+The Recovery Map is the 60-second summary a practitioner sees when opening a client. It must be scannable, actionable, and visually clear.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Maria S. — Right Shoulder Stiffness                        │
+│  Last visit: 3 days ago | Sessions: 5 | Trend: Improving   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────┐  ┌─────────────────────────────────┐│
+│  │                   │  │ TARGET REGIONS                   ││
+│  │   [Body Avatar    │  │                                  ││
+│  │    with highlighted│  │ 🔴 Right Shoulder               ││
+│  │    zones in red/  │  │    Stiffness: 7/10              ││
+│  │    blue/yellow]   │  │    ROM: 142° (↓ from 158°)      ││
+│  │                   │  │    Asymmetry: 10.1% vs left     ││
+│  │                   │  │    Trigger: After running        ││
+│  │                   │  │                                  ││
+│  │                   │  │ 🟡 Lower Back (compensation)     ││
+│  │                   │  │    Stiffness: 4/10              ││
+│  │                   │  │    Likely upstream from shoulder ││
+│  └───────────────────┘  └─────────────────────────────────┘│
+│                                                             │
+│  ┌───────────────────────────────┐  ┌─────────────────────┐│
+│  │ WEARABLE CONTEXT              │  │ PRIOR OUTCOMES      ││
+│  │ HRV: 42ms (moderate recovery) │  │ Session 5: ★★★★☆   ││
+│  │ Strain: 12.4 (moderate)       │  │ Session 4: ★★★★★   ││
+│  │ Sleep: 78/100                 │  │ Session 3: ★★★☆☆   ││
+│  │ Last sync: 2 hours ago        │  │ Trend: Improving    ││
+│  └───────────────────────────────┘  └─────────────────────┘│
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ RECOMMENDED SESSION                                     ││
+│  │                                                         ││
+│  │ Goal: Recovery    Duration: 9 min    Confidence: 78%   ││
+│  │ Sun: Right shoulder (anterior)                          ││
+│  │ Moon: Right upper back (posterior)                      ││
+│  │ Intensity: Moderate    LED: On    Vib: 15–222          ││
+│  │                                                         ││
+│  │ "This client responded best to moderate-intensity      ││
+│  │  shoulder recovery sessions. ROM has decreased 10%     ││
+│  │  since last visit, suggesting a standard recovery      ││
+│  │  protocol with full modality support."                  ││
+│  │                                                         ││
+│  │ [Edit Protocol]  [Select Device & Launch]              ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 Protocol Editor (Safe-Range UI)
+
+When the practitioner taps "Edit Protocol," they see constrained sliders for each parameter. Sliders enforce the safe envelope — they cannot be dragged outside the allowed range.
+
+```swift
+// ios/HydraScan/Components/SessionConfigEditor.swift
+
+struct SessionConfigEditor: View {
+    @Binding var config: SessionConfig
+    let safeEnvelope: SafeEnvelope
+
+    var body: some View {
+        Form {
+            Section("Session") {
+                Stepper("Duration: \(config.edgeCycleDuration) min",
+                        value: $config.edgeCycleDuration,
+                        in: safeEnvelope.edgeCycleDurationMin...safeEnvelope.edgeCycleDurationMax)
+            }
+
+            Section("Thermal") {
+                SafeRangeSlider(
+                    label: "Hot Intensity (PWM)",
+                    value: $config.pwmValues.hot[0],
+                    range: Double(safeEnvelope.pwmHotMin)...Double(safeEnvelope.pwmHotMax)
+                )
+                SafeRangeSlider(
+                    label: "Cold Intensity (PWM)",
+                    value: $config.pwmValues.cold[0],
+                    range: Double(safeEnvelope.pwmColdMin)...Double(safeEnvelope.pwmColdMax)
+                )
+                SafeRangeSlider(
+                    label: "Hot Drop",
+                    value: $config.hotDrop,
+                    range: Double(safeEnvelope.hotDropMin)...Double(safeEnvelope.hotDropMax)
+                )
+            }
+
+            Section("Vibration") {
+                SafeRangeSlider(
+                    label: "Min Vibration",
+                    value: $config.vibMin,
+                    range: Double(safeEnvelope.vibMinFloor)...Double(safeEnvelope.vibMinCeiling)
+                )
+                SafeRangeSlider(
+                    label: "Max Vibration",
+                    value: $config.vibMax,
+                    range: Double(safeEnvelope.vibMaxFloor)...Double(safeEnvelope.vibMaxCeiling)
+                )
+            }
+
+            Section("Photobiomodulation") {
+                Toggle("LED Active", isOn: Binding(
+                    get: { config.led == 1 },
+                    set: { config.led = $0 ? 1 : 0 }
+                ))
+            }
+        }
+    }
+}
+```
+
+### 5.3 Device Selection & Session Launch
+
+```swift
+// ios/HydraScan/Views/Practitioner/DeviceSelectionView.swift
+
+struct DeviceSelectionView: View {
+    let clinicDevices: [Device]
+    @Binding var selectedDevice: Device?
+    let sessionConfig: SessionConfig
+    let onLaunch: () -> Void
+
+    var body: some View {
+        VStack {
+            Text("Select Device")
+                .font(.headline)
+
+            ForEach(clinicDevices.filter { $0.status == "idle" }) { device in
+                Button {
+                    selectedDevice = device
+                } label: {
+                    HStack {
+                        Image(systemName: selectedDevice?.id == device.id
+                              ? "checkmark.circle.fill" : "circle")
+                        VStack(alignment: .leading) {
+                            Text(device.label)
+                                .font(.subheadline.bold())
+                            Text(device.room ?? "")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(device.deviceMac)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        StatusBadge(status: device.status)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).stroke(
+                        selectedDevice?.id == device.id ? Color.blue : Color.gray.opacity(0.3)
+                    ))
+                }
+            }
+
+            if let device = selectedDevice {
+                Button("Launch Session on \(device.label)") {
+                    onLaunch()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(device.status != "idle")
+            }
+        }
+    }
+}
+```
+
+### 5.4 Live Session Control View
+
+```swift
+// ios/HydraScan/Views/Practitioner/LiveSessionView.swift
+
+struct LiveSessionView: View {
+    @StateObject var sessionVM: LiveSessionViewModel
+    let device: Device
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Session status
+            Text(sessionVM.status.displayName)
+                .font(.title2.bold())
+                .foregroundColor(sessionVM.status.color)
+
+            // Timer
+            Text(sessionVM.elapsedFormatted)
+                .font(.system(size: 48, weight: .thin, design: .monospaced))
+
+            // Device info
+            HStack {
+                Image(systemName: "wifi")
+                Text(device.label)
+                if sessionVM.isSimulated {
+                    Text("SIMULATION")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.2))
+                        .cornerRadius(4)
+                }
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+            // Controls
+            HStack(spacing: 32) {
+                if sessionVM.status == .active {
+                    Button { sessionVM.pause() } label: {
+                        Label("Pause", systemImage: "pause.circle.fill")
+                            .font(.title2)
+                    }
+                } else if sessionVM.status == .paused {
+                    Button { sessionVM.resume() } label: {
+                        Label("Resume", systemImage: "play.circle.fill")
+                            .font(.title2)
+                    }
+                }
+
+                Button(role: .destructive) { sessionVM.stop() } label: {
+                    Label("Stop", systemImage: "stop.circle.fill")
+                        .font(.title2)
+                }
+            }
+        }
+        .padding()
+    }
+}
+```
+
+### 5.5 Definition of Done (Phase 5)
+- [ ] Recovery Map renders with highlighted zones, wearable context, prior outcomes
+- [ ] Recommended session displays with confidence score and rationale
+- [ ] Protocol editor allows constrained edits within safe envelope
+- [ ] Device selection shows available devices with status
+- [ ] Session launch calls MQTT proxy and starts the device
+- [ ] Live session view shows timer and Pause/Resume/Stop controls
+- [ ] Practitioner edits are logged (recommended vs actual config)
+- [ ] Simulated mode badge visible when no real device is connected
+
+
+---
+
+## Phase 6: Client iOS App — Intake, Capture, Continuity
+
+> **Goal:** The client-facing iOS app is polished and covers the full client journey: onboarding, intake, body zone mapping, QuickPose capture (Phase 3), post-session feedback, daily check-ins, and Recovery Score.
+> **Owner:** iOS agent
+> **Estimated time:** 3–4 hours
+> **Dependencies:** Phase 1 (auth), Phase 3 (QuickPose capture), Phase 7 (outcomes)
+> **Judging impact:** UX (15pts), Loop Coverage bonus (+10pts), Path to Product (20pts)
+
+### 6.1 Rapid Intake View
+
+```swift
+// ios/HydraScan/Views/Client/IntakeView.swift
+
+struct IntakeView: View {
+    @State private var selectedRegions: Set<BodyRegion> = []
+    @State private var signals: [RecoverySignal] = []
+    @State private var goal: RecoveryGoal = .recovery
+    @State private var activityContext: String = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+
+                // 1. Body zone selector
+                Text("Where do you need support?")
+                    .font(.headline)
+                BodyMapCanvas(selectedRegions: $selectedRegions)
+                    .frame(height: 400)
+
+                // 2. Per-region signals
+                ForEach(Array(selectedRegions), id: \.self) { region in
+                    RegionSignalPicker(
+                        region: region,
+                        onSignalAdded: { signal in
+                            signals.append(signal)
+                        }
+                    )
+                }
+
+                // 3. Session goal
+                Text("What's your goal today?")
+                    .font(.headline)
+                GoalPicker(selected: $goal)
+
+                // 4. Activity context
+                Text("What have you been doing recently?")
+                    .font(.headline)
+                ActivityContextField(value: $activityContext)
+
+                // Submit
+                Button("Continue to Movement Capture") {
+                    saveIntakeAndNavigateToCapture()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+            .padding()
+        }
+    }
+}
+```
+
+### 6.2 Body Map Canvas
+
+An interactive body visualization where the client taps to highlight regions. This is a simplified 2D representation — not a full 3D model.
+
+```swift
+// ios/HydraScan/Components/BodyMapCanvas.swift
+
+struct BodyMapCanvas: View {
+    @Binding var selectedRegions: Set<BodyRegion>
+
+    // Define tappable zones as positioned overlays on a body silhouette
+    let bodyZones: [BodyZone] = [
+        BodyZone(region: .rightShoulder, rect: CGRect(x: 0.30, y: 0.15, width: 0.12, height: 0.08)),
+        BodyZone(region: .leftShoulder,  rect: CGRect(x: 0.58, y: 0.15, width: 0.12, height: 0.08)),
+        BodyZone(region: .lowerBack,     rect: CGRect(x: 0.38, y: 0.38, width: 0.24, height: 0.10)),
+        BodyZone(region: .rightHip,      rect: CGRect(x: 0.30, y: 0.48, width: 0.12, height: 0.08)),
+        BodyZone(region: .leftHip,       rect: CGRect(x: 0.58, y: 0.48, width: 0.12, height: 0.08)),
+        BodyZone(region: .rightKnee,     rect: CGRect(x: 0.30, y: 0.65, width: 0.10, height: 0.08)),
+        BodyZone(region: .leftKnee,      rect: CGRect(x: 0.58, y: 0.65, width: 0.10, height: 0.08)),
+        BodyZone(region: .neck,          rect: CGRect(x: 0.42, y: 0.10, width: 0.16, height: 0.06)),
+    ]
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                // Body silhouette image
+                Image("body_silhouette")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+
+                // Tappable zone overlays
+                ForEach(bodyZones) { zone in
+                    let rect = CGRect(
+                        x: zone.rect.origin.x * geo.size.width,
+                        y: zone.rect.origin.y * geo.size.height,
+                        width: zone.rect.width * geo.size.width,
+                        height: zone.rect.height * geo.size.height
+                    )
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(selectedRegions.contains(zone.region)
+                              ? Color.red.opacity(0.4) : Color.clear)
+                        .frame(width: rect.width, height: rect.height)
+                        .position(x: rect.midX, y: rect.midY)
+                        .onTapGesture {
+                            if selectedRegions.contains(zone.region) {
+                                selectedRegions.remove(zone.region)
+                            } else {
+                                selectedRegions.insert(zone.region)
+                            }
+                        }
+                }
+            }
+        }
+    }
+}
+```
+
+### 6.3 Recovery Score & Continuity
+
+The Recovery Score is a single number (0–100) that tracks the client's recovery trajectory between visits. It is computed from:
+
+- Recent session outcomes (stiffness deltas, mobility improvements)
+- Daily check-in data (if any)
+- Wearable data (HRV trends, sleep quality)
+- Session frequency and adherence
+
+```typescript
+// backend/supabase/functions/recovery-score/index.ts
+
+function computeRecoveryScore(
+  recentOutcomes: Outcome[],
+  recentCheckins: DailyCheckin[],
+  wearableContext: WearableContext | null,
+  sessionFrequency: number,  // sessions per week
+): number {
+  let score = 50; // Baseline
+
+  // Factor 1: Outcome trend (up to ±20 points)
+  if (recentOutcomes.length > 0) {
+    const avgDelta = recentOutcomes.reduce((sum, o) =>
+      sum + ((o.stiffness_before - o.stiffness_after) / 10), 0) / recentOutcomes.length;
+    score += avgDelta * 20;
+  }
+
+  // Factor 2: Check-in trend (up to ±10 points)
+  if (recentCheckins.length > 0) {
+    const avgFeeling = recentCheckins.reduce((sum, c) =>
+      sum + c.overall_feeling, 0) / recentCheckins.length;
+    score += (avgFeeling - 3) * 5;  // 3 is neutral
+  }
+
+  // Factor 3: Wearable (up to ±10 points)
+  if (wearableContext) {
+    if (wearableContext.hrv > 50) score += 5;
+    if (wearableContext.sleepScore > 75) score += 5;
+  }
+
+  // Factor 4: Adherence (up to +10 points)
+  if (sessionFrequency >= 2) score += 10;
+  else if (sessionFrequency >= 1) score += 5;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+```
+
+### 6.4 Daily Check-In View
+
+```swift
+struct CheckInView: View {
+    @State private var feeling: Int = 3
+    @State private var targetRegions: [RegionStatus] = []
+    @State private var activity: String = ""
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("How are you feeling today?")
+                .font(.headline)
+
+            // 1–5 emoji scale
+            HStack(spacing: 16) {
+                ForEach(1...5, id: \.self) { level in
+                    Button {
+                        feeling = level
+                    } label: {
+                        Text(emoji(for: level))
+                            .font(.system(size: feeling == level ? 44 : 32))
+                            .opacity(feeling == level ? 1.0 : 0.5)
+                    }
+                }
+            }
+
+            // Target regions from last session
+            if !targetRegions.isEmpty {
+                Text("How do your target areas feel?")
+                    .font(.subheadline)
+                ForEach(targetRegions) { region in
+                    RegionSlider(region: region)
+                }
+            }
+
+            // Activity
+            TextField("What did you do since last check-in?", text: $activity)
+                .textFieldStyle(.roundedBorder)
+
+            Button("Submit Check-In") {
+                submitCheckin()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+}
+```
+
+### 6.5 Definition of Done (Phase 6)
+- [ ] Intake flow completes in under 60 seconds (timed test)
+- [ ] Body Map is tappable and highlights selected regions
+- [ ] Recovery signals captured per region (type, severity, trigger)
+- [ ] Goal picker works for all 5 recovery goals
+- [ ] Recovery Score computed and displayed on client home screen
+- [ ] Daily check-in flow works (feeling, region status, activity)
+- [ ] Check-in data stored in `daily_checkins` table
+- [ ] Check-in data feeds into Recovery Score computation
+
+---
+
+## Phase 7: Post-Session Outcomes & Learning Loop
+
+> **Goal:** After a session, both client and practitioner log outcomes. These outcomes are stored against the exact SessionConfig that ran, enabling the system to learn which protocols work best for each client.
+> **Owner:** iOS agent + Backend agent
+> **Estimated time:** 2–3 hours
+> **Dependencies:** Phase 5 (session execution), Phase 4 (recovery engine)
+> **Judging impact:** Loop Coverage bonus (+10pts), Practitioner Impact (25pts)
+
+### 7.1 Post-Session Outcome Entry (Client)
+
+```swift
+struct PostSessionView: View {
+    let session: Session
+    @State private var stiffnessAfter: Double = 5
+    @State private var sorenessAfter: Double = 5
+    @State private var mobilityImproved: Bool? = nil
+    @State private var sessionEffective: Bool? = nil
+    @State private var repeatIntent: String = "maybe"
+    @State private var notes: String = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("How do you feel after your session?")
+                    .font(.title3.bold())
+
+                // Stiffness slider
+                VStack(alignment: .leading) {
+                    Text("Stiffness now: \(Int(stiffnessAfter))/10")
+                    Slider(value: $stiffnessAfter, in: 0...10, step: 1)
+                    HStack {
+                        Text("None").font(.caption)
+                        Spacer()
+                        Text("Severe").font(.caption)
+                    }
+                }
+
+                // Mobility
+                YesNoMaybeSelector(
+                    label: "Did your mobility improve?",
+                    value: $mobilityImproved
+                )
+
+                // Effectiveness
+                YesNoMaybeSelector(
+                    label: "Did the session feel effective?",
+                    value: $sessionEffective
+                )
+
+                // Repeat intent
+                VStack(alignment: .leading) {
+                    Text("Would you want this session again?")
+                    Picker("", selection: $repeatIntent) {
+                        Text("Yes").tag("yes")
+                        Text("Maybe").tag("maybe")
+                        Text("No, try different").tag("no")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                // Notes
+                TextField("Any notes for your practitioner?", text: $notes)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Submit") {
+                    submitOutcome()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+            .padding()
+        }
+    }
+}
+```
+
+### 7.2 Post-Session Outcome Entry (Practitioner)
+
+```swift
+struct PractitionerOutcomeView: View {
+    let session: Session
+    @State private var retestValues: [String: Double] = [:]
+    @State private var notes: String = ""
+
+    var body: some View {
+        Form {
+            Section("Re-Test Values") {
+                // Show the same ROM metrics from the pre-session assessment
+                // Allow practitioner to enter post-session values
+                ForEach(session.assessment.romKeys, id: \.self) { key in
+                    HStack {
+                        Text(key.humanReadable)
+                        Spacer()
+                        Text("Before: \(session.assessment.romValues[key]!, specifier: "%.0f")°")
+                            .foregroundColor(.secondary)
+                        TextField("After", value: $retestValues[key], format: .number)
+                            .frame(width: 60)
+                            .textFieldStyle(.roundedBorder)
+                        Text("°")
+                    }
+                }
+            }
+
+            Section("Notes") {
+                TextEditor(text: $notes)
+                    .frame(height: 100)
+            }
+
+            Button("Save & Close Session") {
+                saveOutcomeAndClose()
+            }
+        }
+    }
+}
+```
+
+### 7.3 Outcome → Recovery Graph Update
+
+```typescript
+// backend/supabase/functions/trend-analyzer/index.ts
+
+async function updateRecoveryGraph(
+  sessionId: string,
+  outcome: Outcome,
+  sessionConfig: SessionConfig,
+  supabase: SupabaseClient
+) {
+  const session = await supabase.from('sessions').select('*').eq('id', sessionId).single();
+
+  // 1. Store stiffness delta as a data point
+  if (outcome.stiffness_before != null && outcome.stiffness_after != null) {
+    await supabase.from('recovery_graph').insert({
+      client_id: session.data.client_id,
+      body_region: session.data.session_config.targetRegion || 'general',
+      metric_type: 'stiffness',
+      value: outcome.stiffness_after,
+      source: 'session_outcome',
+      source_id: sessionId,
+    });
+  }
+
+  // 2. Store ROM delta if re-tested
+  if (outcome.rom_after) {
+    for (const [key, afterValue] of Object.entries(outcome.rom_after)) {
+      await supabase.from('recovery_graph').insert({
+        client_id: session.data.client_id,
+        body_region: extractRegionFromRomKey(key),
+        metric_type: `rom_${key}`,
+        value: afterValue as number,
+        source: 'session_outcome',
+        source_id: sessionId,
+      });
+    }
+  }
+
+  // 3. Compute and store updated Recovery Score
+  const newScore = await computeRecoveryScore(session.data.client_id, supabase);
+  await supabase.from('recovery_graph').insert({
+    client_id: session.data.client_id,
+    body_region: 'general',
+    metric_type: 'recovery_score',
+    value: newScore,
+    source: 'session_outcome',
+    source_id: sessionId,
+  });
+}
+```
+
+### 7.4 Plateau / Escalation Detection
+
+```typescript
+// If outcomes are flat over several sessions, flag for practitioner review
+
+async function detectPlateau(clientId: string, bodyRegion: string, supabase: SupabaseClient): Promise<boolean> {
+  const { data: recentScores } = await supabase
+    .from('recovery_graph')
+    .select('value')
+    .eq('client_id', clientId)
+    .eq('body_region', bodyRegion)
+    .eq('metric_type', 'stiffness')
+    .order('recorded_at', { ascending: false })
+    .limit(3);
+
+  if (!recentScores || recentScores.length < 3) return false;
+
+  // Check if stiffness hasn't changed by more than 1 point across last 3 sessions
+  const values = recentScores.map(s => s.value);
+  const range = Math.max(...values) - Math.min(...values);
+  return range <= 1;  // Plateau if range is ≤1 across 3 sessions
+}
+```
+
+### 7.5 Definition of Done (Phase 7)
+- [ ] Client can log post-session outcome (stiffness, mobility, effectiveness, repeat intent)
+- [ ] Practitioner can log re-test ROM values and notes
+- [ ] Outcomes stored in `outcomes` table linked to exact `session_config`
+- [ ] Recovery Graph updated with new data points
+- [ ] Recovery Score recomputed after each session
+- [ ] Plateau detection flags clients with flat outcomes
+- [ ] Trend view shows improvement / plateau / regression
+
+---
+
+## Phase 8: Analytics, Admin & Clinic Intelligence
+
+> **Goal:** Clinic admins can see aggregate trends, protocol performance, and utilization metrics. Practitioners can see their own client outcomes.
+> **Owner:** Backend agent + Frontend agent
+> **Estimated time:** 2–3 hours (stretch goal for hackathon)
+> **Dependencies:** Phase 7 (outcomes data exists)
+> **Judging impact:** Path to Product (20pts), Business Model bonus (+3pts)
+
+### 8.1 Practitioner Dashboard Metrics
+
+- Total clients seen
+- Sessions this week/month
+- Average outcome improvement (stiffness delta)
+- Top protocols by effectiveness
+- Clients needing attention (plateauing or declining)
+
+### 8.2 Clinic Admin Dashboard Metrics
+
+- Device utilization per room
+- Revenue-equivalent session count (sessions × average session value)
+- Protocol distribution
+- Client retention (return visit rate)
+- Practitioner performance comparison (anonymized)
+
+### 8.3 Business Model Insight (Bonus +3pts)
+
+Include in the demo:
+- Per-session pricing model for HydraScan ($X per session as a SaaS add-on)
+- ROI calculator: "If a clinic runs 20 sessions/day at $15 margin, HydraScan pays for itself in Y days"
+- Conversion metric: % of clients who return after first HydraScan-guided session vs baseline
+
+### 8.4 Definition of Done (Phase 8)
+- [ ] Practitioner dashboard shows key metrics
+- [ ] Admin dashboard shows clinic-wide analytics
+- [ ] At least one business model insight visible in the demo
+- [ ] Analytics queries are performant (< 2 seconds)
+
+---
+
+## Phase 9: Final Integration, Polish & Demo Prep
+
+> **Goal:** All phases integrated end-to-end. Demo script rehearsed. Pitch deck ready. All loose ends tied.
+> **Owner:** Entire team
+> **Estimated time:** 3–4 hours (final sprint)
+> **Dependencies:** All previous phases
+> **Judging impact:** ALL criteria — this is the final impression
+
+### 9.1 End-to-End Integration Test
+
+Run the complete flow manually:
+
+1. **Client signs in** on iPhone → profile created
+2. **Client completes intake** → body zones highlighted, signals captured, goal selected (< 60 seconds)
+3. **Client runs QuickPose capture** → ROM, asymmetry, movement quality computed on-device
+4. **Assessment uploaded** → Recovery Map generated
+5. **Practitioner opens Recovery Map** on iPad → sees all data within 60 seconds
+6. **Recommended SessionConfig displayed** → with rationale and confidence score
+7. **Practitioner edits** (optional) → safe envelope enforced
+8. **Device selected** from Device Registry → launch tapped
+9. **MQTT command sent** → device starts (real or simulated) → status updates to `in_session`
+10. **Session controlled** → Pause/Resume/Stop work → status updates
+11. **Client logs outcome** → stiffness, mobility, effectiveness, repeat intent
+12. **Practitioner logs re-test** → ROM after values
+13. **Recovery Graph updated** → trend visible
+14. **Recovery Score recomputed** → displayed on client home
+15. **Next visit** → recommendation improves based on outcome data
+
+### 9.2 Demo Script (5 minutes + 3 min Q&A)
+
+```
+MINUTE 0:00 — HOOK
+"Recovery doesn't end when the patient walks out the door.
+ But until now, it has. HydraScan changes that."
+
+MINUTE 0:30 — THE GAP
+"Hydrawav3 sessions work. The device delivers measurable results in 9 minutes.
+ But before the session, protocol selection is guesswork.
+ During the session, there's no intelligence personalizing the modality mix.
+ After the session, the recovery journey goes dark."
+[Show: the gap diagram]
+
+MINUTE 1:00 — THE PRODUCT
+"HydraScan is the intelligence layer for Hydrawav3.
+ Know. Act. Learn."
+[Show: iOS app → intake → QuickPose capture → Recovery Map]
+
+MINUTE 2:00 — LIVE DEMO
+"Let me show you what this looks like."
+[Live: open practitioner console → Recovery Map loads → show highlighted zones,
+ ROM values, wearable context, prior session outcomes]
+"In under 60 seconds, the practitioner sees everything they need."
+
+MINUTE 2:30 — PROTOCOL & LAUNCH
+[Live: show recommended SessionConfig → confidence score → rationale]
+"The system recommends a 9-minute moderate recovery session.
+ Confidence: 78%. Based on 5 prior sessions."
+[Live: select device → tap Launch → device starts (or simulation badge shown)]
+
+MINUTE 3:00 — OUTCOMES & CONTINUITY
+[Live: after session → client logs outcome → stiffness 7 → 3]
+[Live: Recovery Graph updates → trend line improves]
+"Every session makes the next one smarter."
+
+MINUTE 3:30 — INTEGRATION DEPTH
+"HydraScan doesn't simulate the integration. It uses it."
+[Show: MQTT payload in logs → real device MAC → real API response]
+"Authentication, device targeting, safe envelope validation,
+ and lifecycle control — all through the official HydraWav3Pro MQTT API."
+
+MINUTE 4:00 — PATH TO PRODUCT
+"This isn't a hackathon prototype.
+ It's a production architecture: multi-tenant auth, RLS isolation,
+ typed SessionConfig, safe envelope enforcement, and a learning loop
+ that improves with every patient visit."
+
+MINUTE 4:30 — THE ASK
+"HydraScan turns a 9-minute Hydrawav3 session into a persistent,
+ practitioner-guided recovery intelligence system.
+ Thank you."
+
+[Q&A: 3 minutes]
+```
+
+### 9.3 Anticipated Judge Questions
+
+| Question | Prepared answer |
+|----------|----------------|
+| "How does this integrate with the actual device?" | "We use the official HydraWav3Pro MQTT Control API. Auth via JWT, commands via /api/v1/mqtt/publish, device targeting by MAC. The SessionConfig we generate maps directly to the API payload schema." |
+| "Is this making medical claims?" | "No. HydraScan is a wellness and recovery support tool. All language uses 'supports,' 'mobility,' 'recovery.' We enforce wellness-only terminology in the LLM explanation service." |
+| "How does personalization work?" | "Three layers: rules engine for region→placement mapping, history scorer for outcome-weighted config selection, and safe envelope validation. The LLM only explains — it doesn't decide." |
+| "What happens if the API is unavailable?" | "Graceful degradation: simulated device mode echoes the full MQTT flow locally. Offline capture mode lets the client complete intake and QuickPose without network. Session launch requires connectivity." |
+| "How would you price this?" | "SaaS add-on per clinic: monthly fee + per-session usage. ROI is immediate: if HydraScan increases session personalization accuracy, each 9-minute session delivers better results, which increases patient return rates." |
+| "What's the path from here to production?" | "Phase 1 is already production-shaped: multi-tenant auth, RLS, typed schemas. The main gap is protocol parameter validation with Hydrawav3's engineering team and clinical field testing of the recommendation engine." |
+
+### 9.4 Polish Checklist
+
+- [ ] All placeholder images replaced with real body silhouettes
+- [ ] Color scheme consistent across iOS + web
+- [ ] Loading states on all network calls
+- [ ] Error handling on all API calls (especially MQTT)
+- [ ] Simulation badge visible when in simulated mode
+- [ ] No "diagnoses," "treats," "cures," "medical" anywhere in UI
+- [ ] Recovery Score animation on the client home screen
+- [ ] Trend charts smooth and readable
+- [ ] Demo data seeded for 3 client personas with 3–5 sessions each
+
+### 9.5 Definition of Done (Phase 9)
+- [ ] Full E2E flow works without manual intervention
+- [ ] Demo script rehearsed (under 5 minutes)
+- [ ] Q&A answers prepared and distributed to team
+- [ ] Devpost submission ready (description, screenshots, track tags)
+- [ ] Code pushed to shared repo
+- [ ] All team members can run the demo independently
+
+---
+
+## Appendix A: Full MQTT API Reference
+
+See Section 2.2 of this document for the complete transcription of the HydraWav3Pro MQTT Control API documentation, including:
+- Authentication endpoint and request/response format
+- MQTT Publish endpoint and envelope structure
+- Start Session payload with all configurable parameters
+- Stop, Pause, Resume command payloads
+- Play Command value mapping (with noted inconsistency)
+- Payload formatting rules (stringified JSON, quote escaping)
+
+---
+
+## Appendix B: SessionConfig TypeScript Schema
+
+See Section 6.2 of this document for the complete TypeScript schema including:
+- `SessionConfig` interface with all fields annotated
+- `ModalityFunc` type union
+- `PlayCmd` type union
+- `SafeEnvelope` interface with per-region overrides
+- Default safe range values
+
+---
+
+## Appendix C: Language & Compliance Guardrails
+
+### C.1 Mandatory Terminology Table
+
+| ALWAYS USE | NEVER USE |
+|-----------|-----------|
+| recovery, wellness, mobility, performance | medical device, clinical, diagnostic |
+| supports, empowers, enhances | treats, cures, diagnoses, heals |
+| practitioner-first, hands-off | replaces the practitioner |
+| supports inflammation management | reduces inflammation |
+| the body heals itself | we heal the body |
+| movement insights, recovery signals | clinical findings, medical results |
+| wellness indicators | diagnostic indicators |
+| session guidance | treatment prescription |
+| recovery support | pain treatment |
+| personalized protocol | clinical protocol |
+
+### C.2 UI String Validation
+
+```typescript
+// shared/constants/language-guardrails.ts
+
+const FORBIDDEN_TERMS = [
+  'diagnos', 'treat', 'cure', 'medical device', 'clinical',
+  'prescription', 'medication', 'drug', 'heal', 'therapy',
+  'patient' /* use 'client' instead */,
+  'reduces inflammation', 'we heal',
+];
+
+const PREFERRED_REPLACEMENTS: Record<string, string> = {
+  'patient': 'client',
+  'diagnosis': 'assessment',
+  'treatment': 'session',
+  'therapy': 'recovery support',
+  'clinical': 'wellness',
+  'medical': 'recovery',
+  'cure': 'support',
+  'heal': 'recover',
+};
+
+function validateWellnessLanguage(text: string): { valid: boolean; violations: string[] } {
+  const violations: string[] = [];
+  const lower = text.toLowerCase();
+  for (const term of FORBIDDEN_TERMS) {
+    if (lower.includes(term)) {
+      violations.push(`Found forbidden term: "${term}". Use: "${PREFERRED_REPLACEMENTS[term] || 'see guidelines'}"`);
+    }
+  }
+  return { valid: violations.length === 0, violations };
+}
+```
+
+### C.3 LLM System Prompt (for explanation service)
+
+```
+You are a wellness recovery assistant for the Hydrawav3 platform.
+
+ABSOLUTE RULES:
+1. NEVER use: "diagnose", "treat", "cure", "heal", "medical device", "clinical", "prescription"
+2. ALWAYS use: "support", "recovery", "wellness", "mobility", "performance"
+3. Frame everything as "practitioner decision support" not "medical advice"
+4. Use "client" not "patient"
+5. Say "the body heals itself" — the platform empowers and supports
+6. Keep explanations to 2-3 sentences maximum
+7. Be specific about what data drove the recommendation
+8. Never claim certainty about outcomes — use "suggests," "indicates," "may support"
+```
+
+---
+
+## Appendix D: Judging Rubric & Scoring Strategy
+
+### D.1 Rubric (100 base + 18 bonus = 118 max)
+
+| Criterion | Points | HydraScan coverage |
+|-----------|--------|-------------------|
+| Practitioner Impact | 25 | Recovery Map (60-second understanding), protocol recommendation (< 2 min), outcome visibility |
+| Technical Feasibility | 20 | QuickPose on-device, Supabase backend, real MQTT API integration, typed schemas |
+| Platform Integration | 20 | JWT auth, MQTT publish, SessionConfig matches API schema, device targeting by MAC |
+| Path to Product | 20 | Multi-tenant auth, RLS, safe envelope, learning loop, production repo structure |
+| User Experience | 15 | < 60 sec intake, guided capture, clean practitioner console, Recovery Score |
+| **BONUS: Loop Coverage** | **+10** | Assessment (Know) + Session (Act) + Outcomes (Learn) = full loop |
+| **BONUS: Live Data Demo** | **+5** | Real device session launch via MQTT API (or clearly badged simulation) |
+| **BONUS: Business Model** | **+3** | Per-session pricing, ROI calculator, retention metric |
+
+### D.2 Scoring Strategy
+
+- **Prioritize Practitioner Impact (25pts):** The Recovery Map must be the star of the demo. If one thing works perfectly, it should be this.
+- **Ensure Platform Integration (20pts):** The MQTT API integration must be visible in the demo — show the payload, show the MAC address, show the API response.
+- **Chase the Loop Coverage bonus (+10pts):** This is the highest-value bonus. Show all three stages clearly.
+- **The Live Data Demo bonus (+5pts) is the most impressive differentiator.** If you can launch a session on a real device during the demo, that will be memorable.
+
+---
+
+## Appendix E: Datasets & External Resources
+
+### E.1 Hydrawav3 Starter Kit Contents
+
+| Resource | Purpose | Access |
+|----------|---------|--------|
+| Live Hydrawav3 API | Device control | Credentials at Saturday workshop |
+| Mock session logs | Historical session data for testing | Starter kit |
+| Patient profile datasets | Test personas with conditions and goals | Starter kit |
+| Body movement video library | 5–10 clips showing common asymmetries | Starter kit |
+| Wearable data samples | HRV, strain, sleep quality, activity | Starter kit |
+| Sun/Moon pad placement logic | Placement decision trees | Starter kit |
+| Approved wellness terminology | Language guardrails | Starter kit |
+| Patient personas | 3–4 personas with conditions, histories, goals | Starter kit |
+| HRV-based protocol decision tree | Example protocol selection logic | Starter kit |
+| Engagement benchmarks | What good looks like for health apps | Starter kit |
+| Physical devices | 5 Hydrawav3 units for hands-on testing | On-site, rotating schedule |
+
+### E.2 Movement & Vitals Datasets
+
+See Section 4.5 of this document for the complete dataset table with links.
+
+### E.3 Key URLs
+
+| Resource | URL |
+|----------|-----|
+| Hydrawav3 App (web) | `https://www.hydrawav3.studio` |
+| Hydrawav3 Protocol Library | `https://www.hydrawav3.com/protocols` |
+| App Walkthrough Videos | `https://www.hydrawav3.com/start-session-videos` |
+| Live Demo Video | `https://vimeo.com/1184430448` |
+| Google Drive Resources | `https://drive.google.com/drive/folders/1xnGe4xfHqqy51fHDRbKhtY7L0lhR-rH5` |
+| Hackathon Presentation Deck | `https://docs.google.com/presentation/d/1jyN164bKIfGiR5Ym9HF6ZFFxXleKF8wB/edit` |
+
+---
+
+## Appendix F: Clarifying Questions Log
+
+All open questions that should be resolved at the Saturday workshop or through testing. Each question has a default implementation decision so development is never blocked.
+
+| ID | Question | Default decision | Resolved? |
+|----|----------|-----------------|-----------|
+| CQ-001 | Are API auth credentials the same as the app login? | Use app credentials for now | ☐ |
+| CQ-002 | What is the API base URL? | Use `https://www.hydrawav3.studio` | ☐ |
+| CQ-003 | Pause=2 or Pause=3? (doc inconsistency) | Use JSON example values: Pause=2, Stop=3 | ☐ |
+| CQ-004 | Does QuickPose require a license key? | Assume free for hackathon | ☐ |
+| CQ-005 | Which QuickPoseMP variant? | Use `full` for balance | ☐ |
+| CQ-006 | Should we use InsForge as backend? | Default to Supabase; InsForge as stretch | ☐ |
+| CQ-007 | What are canonical safe PWM/vibration ranges? | Use conservative estimates in safe-ranges.ts | ☐ |
+| CQ-008 | How does totalDuration relate to edgeCycleDuration? | Log both; compute totalDuration from config | ☐ |
+| CQ-009 | Hydrawav3 API base URL? | Confirm at workshop; block MQTT calls until confirmed | ☐ |
+| CQ-010 | Exact QuickPose Swift API for ROM? | Use `.rangeOfMotion(...)` pattern; verify from docs | ☐ |
+| CQ-011 | Does QuickPose aggregate metrics over time windows? | Assume manual sampling; aggregate in our code | ☐ |
+| CQ-012 | What session data does the Hydrawav3 API return after a session? | Assume fire-and-forget; log locally | ☐ |
+| CQ-013 | Can we get real-time session status from the device? | Assume no real-time feedback; use timer-based estimation | ☐ |
+| CQ-014 | Are there rate limits on the MQTT API? | Assume no; add exponential backoff for safety | ☐ |
+
+---
+
+## Final Notes for Coding Agents
+
+### Agent coordination model
+
+- Each phase can be developed in parallel after Phase 0 completes.
+- Phase 1 (auth) and Phase 2 (MQTT) can run in parallel.
+- Phase 3 (QuickPose) can start after Phase 0 (SDK installed).
+- Phase 4 (recommendation engine) needs Phase 3 outputs but can be stubbed.
+- Phase 5 (practitioner dashboard) depends on Phase 2 + Phase 4.
+- Phase 6 (client app) depends on Phase 1 + Phase 3.
+- Phase 7 (outcomes) depends on Phase 5 + Phase 6.
+- Phase 8 (analytics) depends on Phase 7.
+- Phase 9 (integration) depends on all prior phases.
+
+### Critical path
+
+```
+Phase 0 → Phase 1 (auth) ─────────────────────┐
+       → Phase 2 (MQTT) ──────────────────────┤
+       → Phase 3 (QuickPose) → Phase 4 (engine)┤
+                                                ├→ Phase 5 (practitioner) ┐
+                                                ├→ Phase 6 (client)      ├→ Phase 7 (outcomes) → Phase 8 (analytics) → Phase 9 (integration)
+                                                └────────────────────────┘
+```
+
+### Sub-agent delegation guidance
+
+- **iOS sub-agents** should own: Views, Services, Components, and the QuickPose integration.
+- **Backend sub-agents** should own: Supabase migrations, Edge Functions, and the MQTT proxy.
+- **Integration sub-agents** should own: shared types, seed data, and end-to-end testing.
+- **Design sub-agents** should own: color system, typography, body silhouette assets, and iconography.
+
+### When in doubt
+
+1. Check the concept overview doc (Section 2.1–2.6 of this spec)
+2. Stay inside the language guardrails (Appendix C)
+3. Keep the safe envelope enforced (Section 6.2)
+4. Ask a clarifying question and log it (Appendix F) — then use the default decision and keep building
+5. The demo is everything. If a feature doesn't make the demo better, deprioritize it.
+
+---
+
+*End of HydraScan Agent Build Specification v1.1.0*
+*Total build phases: 10 (0–9)*
+*Generated for GlobeHack 2026 — April 18–19, 2026*
