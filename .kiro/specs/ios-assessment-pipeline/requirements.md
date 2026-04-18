@@ -163,7 +163,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 5. WHEN authentication succeeds, THE Supabase_Client SHALL store the JWT session token for subsequent authenticated API requests.
 6. IF authentication fails, THEN THE iOS_App SHALL display a descriptive error message and allow the client to retry.
 
-### Requirement 10: Rapid Intake Flow
+### Requirement 12: Rapid Intake Flow
 
 **User Story:** As a client, I want to complete a rapid intake in under 60 seconds by selecting body zones, rating discomfort, choosing goals, and noting activity context, so that my practitioner has the information needed to personalize my session.
 
@@ -174,7 +174,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN the client completes the Intake_Flow, THE iOS_App SHALL save the intake data to the `client_profiles` table, updating `primary_regions`, `recovery_signals`, `goals`, and `activity_context` fields.
 4. WHEN the client completes the Intake_Flow, THE iOS_App SHALL navigate to the QuickPose guided capture screen.
 
-### Requirement 11: Body Zone Selection via Interactive Body Map
+### Requirement 13: Body Zone Selection via Interactive Body Map
 
 **User Story:** As a client, I want to tap on a body silhouette to highlight the regions where I need support, so that I can quickly communicate my areas of concern.
 
@@ -186,7 +186,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 4. THE Body_Map_Canvas SHALL allow the client to select multiple Body_Zones simultaneously.
 5. THE Body_Map_Canvas SHALL display the count of currently selected zones.
 
-### Requirement 12: Recovery Signal Entry Per Region
+### Requirement 14: Recovery Signal Entry Per Region
 
 **User Story:** As a client, I want to rate the type and severity of discomfort for each selected body zone, so that the system captures detailed recovery signals.
 
@@ -198,7 +198,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 4. THE Recovery_Signal entry form SHALL allow the client to select an activity trigger from: morning, after_running, after_lifting, post_travel, post_training, evening, and general.
 5. THE iOS_App SHALL store each Recovery_Signal as a structured object with region, type, severity, and trigger fields.
 
-### Requirement 13: Recovery Goal Selection
+### Requirement 15: Recovery Goal Selection
 
 **User Story:** As a client, I want to select my recovery goal for today's session, so that the system can tailor the assessment and session recommendation.
 
@@ -209,7 +209,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN the client selects a Recovery_Goal, THE iOS_App SHALL store the selection in the client profile `goals` field.
 4. THE iOS_App SHALL allow the client to select exactly one primary Recovery_Goal per intake session.
 
-### Requirement 14: Activity Context Input
+### Requirement 16: Activity Context Input
 
 **User Story:** As a client, I want to note what I have been doing recently, so that the practitioner has context about my current physical state.
 
@@ -218,7 +218,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 1. THE iOS_App SHALL present an activity context input allowing the client to describe recent activity via a text field or predefined option selection.
 2. THE iOS_App SHALL store the activity context value in the `client_profiles` table `activity_context` field.
 
-### Requirement 15: Optional Wearable Data Sync
+### Requirement 17: Optional Wearable Data Sync
 
 **User Story:** As a client who uses an Apple Watch, I want to optionally sync my HRV, strain, and sleep data, so that the system has additional recovery context.
 
@@ -229,7 +229,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN wearable data is synced, THE iOS_App SHALL update the `client_profiles` table fields: `wearable_hrv`, `wearable_strain`, `wearable_sleep_score`, and `wearable_last_sync`.
 4. IF the client declines HealthKit authorization, THEN THE iOS_App SHALL proceed with the intake flow without wearable data and leave the wearable fields as null.
 
-### Requirement 16: Consent Flow for Face Video (rPPG)
+### Requirement 18: Consent Flow for Face Video (rPPG)
 
 **User Story:** As a client, I want to explicitly consent before the app uses my front-facing camera for face video, so that my privacy is respected and I understand how the data is used.
 
@@ -241,7 +241,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 4. IF the client declines consent, THEN THE iOS_App SHALL skip the rPPG capture step and proceed to the next step in the flow without face video data.
 5. THE iOS_App SHALL store the consent decision (granted or declined) with a timestamp for audit purposes.
 
-### Requirement 17: Optional rPPG Vitals Capture
+### Requirement 19: Optional rPPG Vitals Capture
 
 **User Story:** As a client who has consented to face video, I want the app to estimate my heart rate from the front-facing camera, so that the system has additional vitals context for my recovery profile.
 
@@ -254,7 +254,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 5. THE iOS_App SHALL discard the raw face video frames after processing and retain only the computed heart rate value.
 6. IF the rPPG analysis produces a low-confidence result (due to poor lighting or excessive motion), THEN THE iOS_App SHALL display a message indicating the reading could not be completed and allow the client to retry or skip.
 
-### Requirement 18: Post-Session Feedback Collection
+### Requirement 20: Post-Session Feedback Collection
 
 **User Story:** As a client, I want to provide feedback after my Hydrawav3 session, so that the system can track my outcomes and improve future recommendations.
 
@@ -265,7 +265,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN the client submits feedback, THE iOS_App SHALL create an Outcome record in the Supabase `outcomes` table with `recorded_by` set to "client".
 4. WHEN the client submits feedback, THE iOS_App SHALL navigate to the Recovery Score display screen.
 
-### Requirement 19: Recovery Score Display
+### Requirement 21: Recovery Score Display
 
 **User Story:** As a client, I want to see my Recovery Score on my home screen with visual progress, so that I can track my recovery trajectory between visits.
 
@@ -276,7 +276,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN the Recovery_Score changes (after a session outcome or daily check-in), THE iOS_App SHALL update the displayed score and progress visualization.
 4. THE iOS_App SHALL fetch the Recovery_Score from the backend `recovery_graph` table, filtered by the client's ID and the "recovery_score" metric type.
 
-### Requirement 20: Daily Check-In Flow
+### Requirement 22: Daily Check-In Flow
 
 **User Story:** As a client between visits, I want to complete a quick daily check-in reporting how I feel, so that the system tracks my recovery between sessions.
 
@@ -287,7 +287,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. WHEN the client submits a Daily_Check_In, THE iOS_App SHALL create a record in the Supabase `daily_checkins` table with `checkin_type` set to "daily".
 4. WHEN the client submits a Daily_Check_In, THE iOS_App SHALL trigger a Recovery_Score recalculation by the backend.
 
-### Requirement 21: Continuity and Gamification Features
+### Requirement 23: Continuity and Gamification Features
 
 **User Story:** As a client, I want to see recovery streaks, XP, levels, and visual before/after comparisons, so that I stay motivated and engaged with my recovery journey.
 
@@ -299,7 +299,18 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 4. THE iOS_App SHALL provide a visual before/after comparison showing ROM values and asymmetry scores from the first assessment versus the most recent assessment.
 5. WHEN the client's streak is broken (no check-in or session for a calendar day), THE iOS_App SHALL reset the streak counter to zero and display an encouraging message to restart.
 
-### Requirement 22: Wellness Language Compliance
+### Requirement 24: Client Home Screen and Navigation Structure
+
+**User Story:** As a client, I want a clear home screen with tab-based navigation, so that I can easily access intake, capture, check-ins, recovery score, and profile features.
+
+#### Acceptance Criteria
+
+1. THE iOS_App SHALL present a tab-based navigation structure with tabs for: Home (Recovery Score and quick actions), Capture (intake and QuickPose flow), Check-In (daily check-in), and Profile (settings and history).
+2. THE iOS_App SHALL display the client's name, current Recovery_Score, streak count, and XP level on the Home tab.
+3. WHEN the client is not authenticated, THE iOS_App SHALL display the login screen and prevent access to any other tab.
+4. WHEN the client has an active session in progress, THE iOS_App SHALL display a persistent banner on the Home tab showing session status.
+
+### Requirement 25: Wellness Language Compliance
 
 **User Story:** As a system, I want all client-facing text in the iOS app to use wellness-appropriate language, so that HydraScan complies with Hydrawav3 brand guidelines.
 
@@ -310,7 +321,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 3. THE iOS_App SHALL use "recovery signals" instead of "symptoms" and "movement insights" instead of "clinical findings" in all assessment-related screens.
 4. THE iOS_App SHALL refer to the device as "Hydrawav3" (lowercase w) in all user-facing text.
 
-### Requirement 23: Offline Resilience for Pose Computation
+### Requirement 26: Offline Resilience for Pose Computation
 
 **User Story:** As a client in a clinic with unreliable Wi-Fi, I want the movement capture and pose computation to work without an internet connection, so that the assessment is not interrupted by connectivity issues.
 
