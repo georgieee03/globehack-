@@ -38,6 +38,15 @@ enum HydraScanConstants {
     static let supabaseURLString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? "Not configured"
     static let supabaseURL = URL(string: supabaseURLString)
     static let supabaseAnonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
+    static let authRedirectURLString = Bundle.main.object(forInfoDictionaryKey: "HYDRASCAN_AUTH_REDIRECT_URL") as? String ?? "hydrascan://auth/callback"
+    static let authRedirectURL = URL(string: authRedirectURLString)
+    static let authRedirectScheme = authRedirectURL?.scheme ?? "hydrascan"
+    static let usesLiveServices = supabaseURL != nil
+        && supabaseURLString != "Not configured"
+        && !supabaseAnonKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+    static let sessionStorageKey = "HydraScan.supabase.session"
+    static let pendingMagicLinkEmailKey = "HydraScan.supabase.pendingMagicLinkEmail"
 
     static let captureSteps: [CaptureStepDefinition] = [
         CaptureStepDefinition(step: .standingFront, title: "Standing Front", instruction: "Stand tall facing the camera.", durationSeconds: 5),

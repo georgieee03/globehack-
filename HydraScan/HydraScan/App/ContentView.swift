@@ -5,7 +5,11 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .home
     @State private var homeRefreshToken = UUID()
 
-    private let service: SupabaseServiceProtocol = MockSupabaseService.shared
+    private let service: SupabaseServiceProtocol
+
+    init(service: SupabaseServiceProtocol = MockSupabaseService.shared) {
+        self.service = service
+    }
 
     var body: some View {
         Group {
@@ -16,7 +20,7 @@ struct ContentView: View {
             } else if let currentUser = authViewModel.currentUser {
                 mainTabs(for: currentUser)
             } else {
-                ProgressView("Loading HydraScan…")
+                ProgressView("Loading HydraScan...")
             }
         }
         .animation(.easeInOut(duration: 0.2), value: authViewModel.isAuthenticated)
@@ -190,6 +194,9 @@ private struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Environment")
                         .font(.headline)
+                    Text("Auth Runtime: \(viewModel.runtimeDescription)")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
                     Text("Supabase URL: \(HydraScanConstants.supabaseURLString)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -213,6 +220,11 @@ private struct ProfileView: View {
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(AuthViewModel())
+    ContentView(service: MockSupabaseService.shared)
+        .environmentObject(
+            AuthViewModel(
+                service: MockAuthService(supabaseService: MockSupabaseService.shared),
+                runtimeDescription: "Demo mode (preview)"
+            )
+        )
 }
