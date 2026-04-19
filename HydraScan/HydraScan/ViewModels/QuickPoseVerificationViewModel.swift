@@ -7,6 +7,68 @@ import UIKit
 #if canImport(QuickPoseCore)
 import QuickPoseCore
 
+enum QuickPoseRuntimeEnvironment: String {
+    case iOSSimulator
+    case macDesignedForiPhone
+    case physicalDevice
+
+    static var current: QuickPoseRuntimeEnvironment {
+#if targetEnvironment(simulator)
+        return .iOSSimulator
+#else
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            return .macDesignedForiPhone
+        }
+        return .physicalDevice
+#endif
+    }
+
+    var supportsQuickPoseRuntime: Bool {
+        self != .iOSSimulator
+    }
+
+    var usesLiveCamera: Bool {
+        self == .physicalDevice
+    }
+
+    var usesBundledClipPreview: Bool {
+        self == .macDesignedForiPhone
+    }
+
+    var liveSectionTitle: String {
+        switch self {
+        case .iOSSimulator:
+            return "Live Camera Test"
+        case .macDesignedForiPhone:
+            return "Mac Runtime Test"
+        case .physicalDevice:
+            return "Live Camera Test"
+        }
+    }
+
+    var startupMessage: String {
+        switch self {
+        case .iOSSimulator:
+            return "QuickPose does not run on the iOS Simulator. Use Sri's iPhone or My Mac (Designed for iPhone/iPad)."
+        case .macDesignedForiPhone:
+            return "Starting QuickPose with the bundled verification clip on My Mac…"
+        case .physicalDevice:
+            return "Starting QuickPose with the live camera feed…"
+        }
+    }
+
+    var supportNote: String {
+        switch self {
+        case .iOSSimulator:
+            return "QuickPose's official SDK only compiles for iOS Simulator. Live frames and post-processing require a physical iPhone or a supported Apple silicon Mac runtime."
+        case .macDesignedForiPhone:
+            return "Running in the Apple silicon Mac runtime. The bundled clip is used here because QuickPose documents this path for local desktop verification."
+        case .physicalDevice:
+            return "Running on a physical iPhone. Live camera frames and fixture processing should both work here."
+        }
+    }
+}
+
 @MainActor
 final class QuickPoseVerificationViewModel: ObservableObject {
     @Published var overlayImage: UIImage?
@@ -28,6 +90,7 @@ final class QuickPoseVerificationViewModel: ObservableObject {
     @Published var bundleIdentifier = Bundle.main.bundleIdentifier ?? "Unknown"
 
     let clip: QuickPoseFixtureClip
+    let runtimeEnvironment = QuickPoseRuntimeEnvironment.current
 
     private let service: QuickPoseVerificationService
     private let quickPose: QuickPose
@@ -55,12 +118,30 @@ final class QuickPoseVerificationViewModel: ObservableObject {
         clip.bundleURL
     }
 
+    var supportsQuickPoseRuntime: Bool {
+        runtimeEnvironment.supportsQuickPoseRuntime
+    }
+
+    var usesLiveCamera: Bool {
+        runtimeEnvironment.usesLiveCamera
+    }
+
+    var usesBundledClipPreview: Bool {
+        runtimeEnvironment.usesBundledClipPreview
+    }
+
     var quickPoseDelegate: QuickPose {
         quickPose
     }
 
     func startLiveVerification() {
-        guard clipURL != nil else {
+        guard supportsQuickPoseRuntime else {
+            liveStatusText = runtimeEnvironment.startupMessage
+            appendDiagnostic(runtimeEnvironment.startupMessage)
+            return
+        }
+
+        if usesBundledClipPreview, clipURL == nil {
             liveStatusText = "Fixture clip is missing from the bundle."
             return
         }
@@ -75,7 +156,7 @@ final class QuickPoseVerificationViewModel: ObservableObject {
         currentAsymmetryText = "Unavailable"
         liveArtifactURL = nil
         hasLoggedFirstLiveFrame = false
-        liveStatusText = hasConfiguredSDKKey ? "Starting simulated QuickPose playback…" : "QuickPose SDK key is missing. Expect validation errors."
+        liveStatusText = hasConfiguredSDKKey ? runtimeEnvironment.startupMessage : "QuickPose SDK key is missing. Expect validation errors."
         appendDiagnostic("Live verification requested. SDK v\(sdkVersion), bundle \(bundleIdentifier).")
 
         quickPose.start(
@@ -188,6 +269,12 @@ final class QuickPoseVerificationViewModel: ObservableObject {
     }
 
     func runFixtureVerification() {
+        guard supportsQuickPoseRuntime else {
+            fixtureErrorMessage = runtimeEnvironment.startupMessage
+            appendDiagnostic("Fixture verification skipped: \(runtimeEnvironment.startupMessage)")
+            return
+        }
+
         guard let clipURL else {
             fixtureErrorMessage = "Fixture clip is missing from the bundle."
             return

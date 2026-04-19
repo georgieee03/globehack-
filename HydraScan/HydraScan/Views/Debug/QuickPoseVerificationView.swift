@@ -41,10 +41,23 @@ struct QuickPoseVerificationView: View {
 
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("UI Sanity Test")
+            Text(viewModel.runtimeEnvironment.liveSectionTitle)
                 .font(.headline)
 
-            if let clipURL = viewModel.clipURL {
+            if viewModel.usesLiveCamera {
+                ZStack {
+                    QuickPoseCameraView(
+                        useFrontCamera: true,
+                        delegate: viewModel.quickPoseDelegate,
+                        videoGravity: .resizeAspectFill
+                    )
+                    QuickPoseOverlayView(overlayImage: $viewModel.overlayImage, contentMode: .fit)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 320)
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            } else if let clipURL = viewModel.clipURL, viewModel.usesBundledClipPreview {
                 ZStack {
                     QuickPoseSimulatedCameraView(
                         useFrontCamera: false,
@@ -59,9 +72,19 @@ struct QuickPoseVerificationView: View {
                 .background(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             } else {
-                Text("Fixture clip missing from app bundle.")
-                    .foregroundStyle(.red)
+                Text(viewModel.runtimeEnvironment.supportNote)
+                    .foregroundStyle(.orange)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color(.secondarySystemBackground))
+                    )
             }
+
+            Text(viewModel.runtimeEnvironment.supportNote)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             Text(viewModel.liveStatusText)
                 .font(.subheadline)
@@ -86,12 +109,13 @@ struct QuickPoseVerificationView: View {
                     viewModel.runFixtureVerification()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isProcessingFixture)
+                .disabled(viewModel.isProcessingFixture || !viewModel.supportsQuickPoseRuntime)
 
                 Button("Save Live Artifact") {
                     viewModel.saveLiveArtifactSnapshot()
                 }
                 .buttonStyle(.bordered)
+                .disabled(!viewModel.supportsQuickPoseRuntime)
             }
 
             if viewModel.isProcessingFixture {
