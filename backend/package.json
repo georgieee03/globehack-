@@ -1,0 +1,14 @@
+{
+  "name": "@hydrascan/backend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "functions:serve": "supabase functions serve"
+  },
+  "devDependencies": {
+    "supabase": "^2.26.8"
+  }
+}

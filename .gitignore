@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.turbo/
+
+# Environment and local secrets
+.env
+.env.local
+
+# Supabase local state
+.supabase/
+
+# Logs and editor noise
+*.log
+.DS_Store
+Thumbs.db
