@@ -12,8 +12,8 @@ final class AuthViewModel: ObservableObject {
     private let service: AuthServiceProtocol
     private let onboardingKey = "HydraScan.didCompleteOnboarding"
 
-    init(service: AuthServiceProtocol = MockAuthService()) {
-        self.service = service
+    init(service: AuthServiceProtocol? = nil) {
+        self.service = service ?? MockAuthService(supabaseService: MockSupabaseService.shared)
     }
 
     var isAuthenticated: Bool {
@@ -26,7 +26,12 @@ final class AuthViewModel: ObservableObject {
 
     func restoreSession() async {
         guard currentUser == nil else { return }
-        currentUser = await service.restoreSession()
+        let restoredUser = await service.restoreSession()
+        if let restoredUser {
+            currentUser = restoredUser
+        } else {
+            currentUser = await service.refreshSession()
+        }
     }
 
     func signInWithApple() async {
@@ -49,8 +54,22 @@ final class AuthViewModel: ObservableObject {
         infoMessage = nil
 
         do {
-            try await service.sendMagicLink(to: emailAddress)
+            try await service.signInWithEmail(emailAddress)
             infoMessage = "Magic link sent. Check your inbox to continue."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func completeMagicLinkDemo() async {
+        isLoading = true
+        errorMessage = nil
+        infoMessage = nil
+
+        do {
+            currentUser = try await service.verifyMagicLink(nil)
         } catch {
             errorMessage = error.localizedDescription
         }

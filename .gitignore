@@ -8,6 +8,8 @@ dist/
 # Environment and local secrets
 .env
 .env.local
+HydraScan/Config/LocalSecrets.xcconfig
+HydraScan/HydraScan/Config/LocalSecrets.xcconfig
 
 # Supabase local state
 .supabase/

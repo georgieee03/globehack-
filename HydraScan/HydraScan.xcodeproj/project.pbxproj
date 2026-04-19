@@ -25,6 +25,8 @@
 		A20000000000000000000010 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000010 /* Constants.swift */; };
 		A20000000000000000000011 /* WellnessLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* WellnessLanguage.swift */; };
 		A20000000000000000000012 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* Extensions.swift */; };
+		A20000000000000000000013 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* SupabaseService.swift */; };
+		B50000000000000000000001 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B30000000000000000000001 /* Supabase */; };
 		108CD0EE2F947D4A0031EB9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 108CD0EC2F947D4A0031EB9B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -49,6 +51,8 @@
 		A10000000000000000000010 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		A10000000000000000000011 /* WellnessLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessLanguage.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		A10000000000000000000013 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
+		A10000000000000000000014 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B50000000000000000000001 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +92,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		108CD0EF2F947D4A0031EB9B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000014 /* Project.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		108CD0E32F947D4A0031EB9B /* Computation */ = {
 			isa = PBXGroup;
 			children = (
@@ -114,6 +127,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000000000000000000000C /* AuthService.swift */,
+				A10000000000000000000013 /* SupabaseService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -172,6 +186,7 @@
 		108CD0ED2F947D4A0031EB9B /* HydraScan */ = {
 			isa = PBXGroup;
 			children = (
+				108CD0EF2F947D4A0031EB9B /* Config */,
 				108CD0E22F947D4A0031EB9B /* App */,
 				108CD0E32F947D4A0031EB9B /* Computation */,
 				108CD0E42F947D4A0031EB9B /* Models */,
@@ -201,6 +216,7 @@
 			);
 			name = HydraScan;
 			packageProductDependencies = (
+				B30000000000000000000001 /* Supabase */,
 			);
 			productName = HydraScan;
 			productReference = 108CD0C82F947BD40031EB9B /* HydraScan.app */;
@@ -278,6 +294,7 @@
 				A20000000000000000000003 /* User.swift in Sources */,
 				A20000000000000000000010 /* Constants.swift in Sources */,
 				A20000000000000000000011 /* WellnessLanguage.swift in Sources */,
+				A20000000000000000000013 /* SupabaseService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -333,6 +350,7 @@
 /* Begin XCBuildConfiguration section */
 		108CD0D12F947BD50031EB9B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000014 /* Project.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -396,6 +414,7 @@
 		};
 		108CD0D22F947BD50031EB9B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000014 /* Project.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -452,6 +471,7 @@
 		};
 		108CD0D42F947BD50031EB9B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000014 /* Project.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -483,6 +503,7 @@
 		};
 		108CD0D52F947BD50031EB9B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000014 /* Project.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
