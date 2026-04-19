@@ -24,8 +24,8 @@ struct QuickPoseCaptureView: View {
         VStack(alignment: .leading, spacing: 20) {
             StepProgressIndicator(
                 title: "Guided Capture",
-                currentStep: viewModel.flowState == .results ? HydraScanConstants.captureSteps.count : viewModel.currentStepIndex + 1,
-                totalSteps: HydraScanConstants.captureSteps.count
+                currentStep: viewModel.flowState == .results ? viewModel.captureSteps.count : viewModel.currentStepIndex + 1,
+                totalSteps: viewModel.captureSteps.count
             )
 
             VStack(alignment: .leading, spacing: 8) {

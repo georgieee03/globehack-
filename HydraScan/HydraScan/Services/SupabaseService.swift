@@ -981,6 +981,21 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             // Assessment persistence should still succeed even if recovery-map generation fails.
         }
 
+        do {
+            let _: RecoveryScoreFunctionResponse = try await core.client.functions.invoke(
+                "recovery-intelligence",
+                options: FunctionInvokeOptions(
+                    body: RecoveryIntelligenceActionRequest(
+                        action: "recovery-score",
+                        clientID: clientProfileID,
+                        assessmentID: saved.id
+                    )
+                )
+            )
+        } catch {
+            // A saved assessment should not fail just because the score refresh route is unavailable.
+        }
+
         return saved
     }
 
@@ -1107,10 +1122,23 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             notes: outcome.clientNotes?.nilIfBlank ?? outcome.practitionerNotes?.nilIfBlank
         )
 
-        let response: OutcomeRecorderResponse = try await core.client.functions.invoke(
-            "outcome-recorder",
-            options: FunctionInvokeOptions(body: request)
-        )
+        let response: OutcomeRecorderResponse
+        do {
+            response = try await core.client.functions.invoke(
+                "outcome-recorder",
+                options: FunctionInvokeOptions(body: request)
+            )
+        } catch {
+            guard isMissingFunctionRoute(error) else {
+                throw error
+            }
+
+            return try await insertOutcomeFallback(
+                outcome,
+                clientProfileID: clientProfileID,
+                resolvedSession: resolvedSession
+            )
+        }
 
         guard response.success else {
             throw SupabaseServiceError.unavailable("Outcome submission did not complete successfully.")
@@ -1177,17 +1205,26 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
     func createCheckin(_ checkin: DailyCheckin) async throws -> DailyCheckin {
         let clientProfileID = try await core.resolveClientProfileID(for: checkin.clientID)
-        let response: CheckinRecorderResponse = try await core.client.functions.invoke(
-            "checkin-recorder",
-            options: FunctionInvokeOptions(
-                body: CheckinRecorderRequest(
-                    checkinType: checkin.checkinType,
-                    overallFeeling: checkin.overallFeeling,
-                    targetRegions: checkin.targetRegions,
-                    activitySinceLast: checkin.activitySinceLast?.nilIfBlank
+        let response: CheckinRecorderResponse
+        do {
+            response = try await core.client.functions.invoke(
+                "checkin-recorder",
+                options: FunctionInvokeOptions(
+                    body: CheckinRecorderRequest(
+                        checkinType: checkin.checkinType,
+                        overallFeeling: checkin.overallFeeling,
+                        targetRegions: checkin.targetRegions,
+                        activitySinceLast: checkin.activitySinceLast?.nilIfBlank
+                    )
                 )
             )
-        )
+        } catch {
+            guard isMissingFunctionRoute(error) else {
+                throw error
+            }
+
+            return try await insertCheckinFallback(checkin, clientProfileID: clientProfileID)
+        }
 
         guard response.success else {
             throw SupabaseServiceError.unavailable("The check-in did not complete successfully.")
@@ -1237,7 +1274,6 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
     func fetchRecoveryScore(clientID: UUID) async throws -> RecoveryScore {
         let clientProfileID = try await core.resolveClientProfileID(for: clientID)
-        let trend = try await fetchRecoveryTrend(clientID: clientProfileID)
 
         do {
             let response: RecoveryScoreFunctionResponse = try await core.client.functions.invoke(
@@ -1252,6 +1288,7 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             )
 
             if response.success {
+                let trend = try await fetchRecoveryTrend(clientID: clientProfileID)
                 let current = Int(response.data.score.rounded())
                 let previous = trend.dropLast().last?.value ?? max(current - 3, 0)
                 return RecoveryScore(
@@ -1265,6 +1302,7 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             // Fall through to local fallback if the edge function is unavailable.
         }
 
+        let trend = try await fetchRecoveryTrend(clientID: clientProfileID)
         let graphRows = try await fetchRecoveryGraphScores(clientProfileID: clientProfileID, limit: 30)
         let recentOutcomes = try await fetchOutcomeInputs(clientProfileID: clientProfileID, limit: 5)
         let recentCheckins = try await fetchRecentCheckins(clientID: clientProfileID, limit: 7)
@@ -1409,8 +1447,105 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         return delta.isEmpty ? nil : delta
     }
 
+    private func insertOutcomeFallback(
+        _ outcome: Outcome,
+        clientProfileID: UUID,
+        resolvedSession: HydraSession
+    ) async throws -> Outcome {
+        let romDelta = try await computeROMDelta(
+            romAfter: outcome.romAfter,
+            assessmentID: resolvedSession.assessmentID
+        )
+
+        let fallbackOutcome = Outcome(
+            id: outcome.id,
+            sessionID: resolvedSession.id,
+            clientID: clientProfileID,
+            clinicID: resolvedSession.clinicID,
+            recordedBy: outcome.recordedBy,
+            recordedByUserID: outcome.recordedByUserID,
+            stiffnessBefore: outcome.stiffnessBefore,
+            stiffnessAfter: outcome.stiffnessAfter,
+            sorenessBefore: outcome.sorenessBefore,
+            sorenessAfter: outcome.sorenessAfter,
+            mobilityImproved: outcome.mobilityImproved,
+            sessionEffective: outcome.sessionEffective,
+            readinessImproved: outcome.readinessImproved,
+            repeatIntent: outcome.repeatIntent,
+            romAfter: outcome.romAfter,
+            romDelta: romDelta ?? outcome.romDelta,
+            clientNotes: outcome.clientNotes?.nilIfBlank,
+            practitionerNotes: outcome.practitionerNotes?.nilIfBlank,
+            createdAt: outcome.createdAt,
+            updatedAt: outcome.updatedAt
+        )
+
+        let rows: [Outcome] = try await core.client
+            .from("outcomes")
+            .insert(fallbackOutcome)
+            .select()
+            .limit(1)
+            .execute()
+            .value
+
+        guard let saved = rows.first else {
+            throw SupabaseServiceError.unavailable("The outcome was recorded but could not be read back.")
+        }
+
+        return saved
+    }
+
+    private func insertCheckinFallback(
+        _ checkin: DailyCheckin,
+        clientProfileID: UUID
+    ) async throws -> DailyCheckin {
+        let fallbackCheckin = DailyCheckin(
+            id: checkin.id,
+            clientID: clientProfileID,
+            clinicID: checkin.clinicID,
+            checkinType: checkin.checkinType,
+            overallFeeling: checkin.overallFeeling,
+            targetRegions: checkin.targetRegions,
+            activitySinceLast: checkin.activitySinceLast?.nilIfBlank,
+            recoveryScore: nil,
+            createdAt: checkin.createdAt,
+            updatedAt: checkin.updatedAt
+        )
+
+        var rows: [DailyCheckin] = try await core.client
+            .from("daily_checkins")
+            .insert(fallbackCheckin)
+            .select()
+            .limit(1)
+            .execute()
+            .value
+
+        guard var saved = rows.first else {
+            throw SupabaseServiceError.unavailable("The check-in was saved but could not be read back.")
+        }
+
+        let recomputedScore = try await computeRecoveryScoreValue(clientProfileID: clientProfileID)
+        rows = try await core.client
+            .from("daily_checkins")
+            .update(CheckinScorePatch(recoveryScore: Double(recomputedScore)))
+            .eq("id", value: saved.id.uuidString)
+            .select()
+            .limit(1)
+            .execute()
+            .value
+
+        if let updated = rows.first {
+            saved = updated
+        } else {
+            saved.recoveryScore = Double(recomputedScore)
+        }
+
+        return saved
+    }
+
     private func computeRecoveryScoreValue(clientProfileID: UUID) async throws -> Int {
         let outcomeInputs = try await fetchOutcomeInputs(clientProfileID: clientProfileID, limit: 5)
+        let assessmentSignals = try await fetchAssessmentSignals(clientProfileID: clientProfileID, limit: 3)
         let recentCheckins = try await fetchRecentCheckins(clientID: clientProfileID, limit: 7)
         let profile = try await core.fetchClientProfile(id: clientProfileID)
         let adherence = try await computeSessionAdherence(clientProfileID: clientProfileID)
@@ -1432,6 +1567,31 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             checkinTrend = clamp((Double(averageFeeling) / Double(recentCheckins.count) - 3.0) * 5.0, min: -10, max: 10)
         }
 
+        var assessmentSignal = 0.0
+        if !assessmentSignals.isEmpty {
+            let movementQualityValues = assessmentSignals.flatMap { signal in
+                signal.movementQualityScores.values.map { value in
+                    value > 1 ? value / 100.0 : value
+                }
+            }
+            let asymmetryValues = assessmentSignals.flatMap { signal in
+                signal.asymmetryScores.values
+            }
+
+            if !movementQualityValues.isEmpty {
+                let averageQuality = movementQualityValues.reduce(0, +) / Double(movementQualityValues.count)
+                assessmentSignal += clamp((averageQuality - 0.5) * 12.0, min: -6, max: 6)
+            }
+
+            if !asymmetryValues.isEmpty {
+                let averageAsymmetry = asymmetryValues.reduce(0, +) / Double(asymmetryValues.count)
+                let symmetryScore = clamp(1.0 - (averageAsymmetry / 100.0), min: 0, max: 1)
+                assessmentSignal += clamp((symmetryScore - 0.5) * 8.0, min: -4, max: 4)
+            }
+
+            assessmentSignal = clamp(assessmentSignal, min: -10, max: 10)
+        }
+
         var wearableAdjustment = 0.0
         if let hrv = profile?.wearableHRV {
             if hrv > 50 {
@@ -1451,7 +1611,11 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
         wearableAdjustment = clamp(wearableAdjustment, min: -10, max: 10)
         let adherenceBonus = clamp(adherence * 10, min: 0, max: 10)
-        let rawScore = clamp(50 + outcomeTrend + checkinTrend + wearableAdjustment + adherenceBonus, min: 0, max: 100)
+        let rawScore = clamp(
+            50 + outcomeTrend + checkinTrend + assessmentSignal + wearableAdjustment + adherenceBonus,
+            min: 0,
+            max: 100
+        )
 
         return Int(rawScore.rounded())
     }
@@ -1472,6 +1636,32 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
         let completedCount = allSessions.filter { $0.status == .completed }.count
         return Double(completedCount) / Double(allSessions.count)
+    }
+
+    private func fetchAssessmentSignals(
+        clientProfileID: UUID,
+        limit: Int
+    ) async throws -> [(movementQualityScores: [String: Double], asymmetryScores: [String: Double])] {
+        struct AssessmentSignalRow: Decodable {
+            let movementQualityScores: [String: Double]
+            let asymmetryScores: [String: Double]
+
+            enum CodingKeys: String, CodingKey {
+                case movementQualityScores = "movement_quality_scores"
+                case asymmetryScores = "asymmetry_scores"
+            }
+        }
+
+        let rows: [AssessmentSignalRow] = try await core.client
+            .from("assessments")
+            .select("movement_quality_scores, asymmetry_scores")
+            .eq("client_id", value: clientProfileID.uuidString)
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+
+        return rows.map { ($0.movementQualityScores, $0.asymmetryScores) }
     }
 
     private func fallbackTrend(clientProfileID: UUID) async throws -> [RecoveryScoreTrendPoint] {
@@ -1515,6 +1705,15 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
     private func clamp(_ value: Double, min: Double, max: Double) -> Double {
         Swift.max(min, Swift.min(max, value))
+    }
+
+    private func isMissingFunctionRoute(_ error: Error) -> Bool {
+        if let functionsError = error as? FunctionsError,
+           case let .httpError(code, _) = functionsError {
+            return code == 404
+        }
+
+        return error.localizedDescription.contains("Edge Function returned a non-2xx status code: 404")
     }
 
     func claimClinicInvite(inviteCode: String, fullName: String) async throws -> HydraSessionContext {

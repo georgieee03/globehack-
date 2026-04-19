@@ -79,8 +79,9 @@ struct CheckInView: View {
                 recommendedRegions = assessment.bodyZones
                 selectedRegions = Set(assessment.bodyZones)
             } else {
-                recommendedRegions = ClientProfile.preview.primaryRegions
-                selectedRegions = Set(ClientProfile.preview.primaryRegions)
+                let profile = try await service.fetchClientProfile(userID: user.id)
+                recommendedRegions = profile.primaryRegions
+                selectedRegions = Set(profile.primaryRegions)
             }
         } catch {
             errorMessage = error.localizedDescription

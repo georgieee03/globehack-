@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class HomeViewModel: ObservableObject {
-    @Published var recoveryScore = RecoveryScore(current: 82, deltaFromLastWeek: 6, updatedAt: Date(), trend: [])
+    @Published var recoveryScore: RecoveryScore?
     @Published var gamificationState = GamificationState(xp: 0, level: 1, streakDays: 0, lastActivityDate: nil)
     @Published var clientProfile = ClientProfile.empty
     @Published var assessments: [Assessment] = []
@@ -76,7 +76,6 @@ final class HomeViewModel: ObservableObject {
         do {
             async let profile = service.fetchClientProfile(userID: user.id)
             async let score = service.fetchRecoveryScore(clientID: user.id)
-            async let trend = service.fetchRecoveryTrend(clientID: user.id)
             async let allAssessments = service.fetchAssessments(clientID: user.id)
             async let outcome = service.fetchLatestOutcome(clientID: user.id)
             async let recentCheckins = service.fetchRecentCheckins(clientID: user.id, limit: 30)
@@ -87,19 +86,13 @@ final class HomeViewModel: ObservableObject {
             let resolvedOutcome = try await outcome
             let resolvedCheckins = try await recentCheckins
             let baseScore = try await score
-            let resolvedTrend = try await trend
             let resolvedAwareness = try await awareness
 
             clientProfile = resolvedProfile
             assessments = resolvedAssessments
             latestOutcome = resolvedOutcome
             sessionAwareness = resolvedAwareness
-            recoveryScore = RecoveryScore(
-                current: baseScore.current,
-                deltaFromLastWeek: baseScore.deltaFromLastWeek,
-                updatedAt: baseScore.updatedAt,
-                trend: resolvedTrend.isEmpty ? baseScore.trend : resolvedTrend
-            )
+            recoveryScore = baseScore
             gamificationState = gamificationService.buildState(
                 assessments: resolvedAssessments,
                 outcomes: resolvedOutcome.map { [$0] } ?? [],

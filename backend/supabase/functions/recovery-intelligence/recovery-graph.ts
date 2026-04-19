@@ -189,6 +189,14 @@ export async function recomputeAndInsertRecoveryScore(
     .order("created_at", { ascending: false })
     .limit(5);
 
+  // Fetch recent assessments (last 3) so capture quality can influence the score
+  const { data: assessments } = await supabase
+    .from("assessments")
+    .select("movement_quality_scores, asymmetry_scores")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(3);
+
   // Fetch recent check-ins (last 7)
   const { data: checkins } = await supabase
     .from("daily_checkins")
@@ -235,6 +243,14 @@ export async function recomputeAndInsertRecoveryScore(
       (o: Record<string, unknown>) => ({
         stiffness_before: o.stiffness_before as number | null,
         stiffness_after: o.stiffness_after as number | null,
+      }),
+    ),
+    recentAssessments: (assessments ?? []).map(
+      (assessment: Record<string, unknown>) => ({
+        movement_quality_scores:
+          (assessment.movement_quality_scores as Record<string, number> | null) ?? null,
+        asymmetry_scores:
+          (assessment.asymmetry_scores as Record<string, number> | null) ?? null,
       }),
     ),
     recentCheckins: (checkins ?? []).map(

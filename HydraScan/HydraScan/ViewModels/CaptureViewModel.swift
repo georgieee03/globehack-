@@ -75,6 +75,7 @@ final class CaptureViewModel: ObservableObject {
 
     let user: HydraUser
     let profile: ClientProfile
+    let captureSteps: [CaptureStepDefinition]
 
     private let service: SupabaseServiceProtocol
     private let offlineCacheService: OfflineCacheServiceProtocol
@@ -98,9 +99,10 @@ final class CaptureViewModel: ObservableObject {
     ) {
         self.user = user
         self.profile = profile
+        captureSteps = HydraScanConstants.captureSteps(for: profile.primaryRegions)
         self.service = service
         self.offlineCacheService = offlineCacheService
-        remainingSeconds = HydraScanConstants.captureSteps.first?.durationSeconds ?? 0
+        remainingSeconds = captureSteps.first?.durationSeconds ?? 0
 
         #if canImport(QuickPoseCore)
         quickPose = QuickPose(sdkKey: HydraScanConstants.quickPoseSDKKey)
@@ -108,12 +110,12 @@ final class CaptureViewModel: ObservableObject {
     }
 
     var currentStep: CaptureStepDefinition {
-        HydraScanConstants.captureSteps[min(currentStepIndex, HydraScanConstants.captureSteps.count - 1)]
+        captureSteps[min(currentStepIndex, captureSteps.count - 1)]
     }
 
     var progressValue: Double {
-        guard !HydraScanConstants.captureSteps.isEmpty else { return 0 }
-        return Double(currentStepIndex + (flowState == .results ? 1 : 0)) / Double(HydraScanConstants.captureSteps.count)
+        guard !captureSteps.isEmpty else { return 0 }
+        return Double(currentStepIndex + (flowState == .results ? 1 : 0)) / Double(captureSteps.count)
     }
 
     var hasConfiguredSDKKey: Bool {
@@ -299,7 +301,7 @@ final class CaptureViewModel: ObservableObject {
         captureTask?.cancel()
         resetCaptureSession()
         flowState = .idle
-        remainingSeconds = HydraScanConstants.captureSteps.first?.durationSeconds ?? 0
+        remainingSeconds = captureSteps.first?.durationSeconds ?? 0
         errorMessage = nil
         liveStatusText = supportsQuickPoseRuntime
             ? "QuickPose is tracking your joints. Start when ready."
@@ -307,7 +309,7 @@ final class CaptureViewModel: ObservableObject {
     }
 
     private func runCaptureSequence() async {
-        for (index, step) in HydraScanConstants.captureSteps.enumerated() {
+        for (index, step) in captureSteps.enumerated() {
             guard !Task.isCancelled else { return }
 
             currentStepIndex = index

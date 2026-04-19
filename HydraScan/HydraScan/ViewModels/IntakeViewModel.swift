@@ -66,7 +66,7 @@ final class IntakeViewModel: ObservableObject {
             clientProfile = profile
             selectedRegions = Set(profile.primaryRegions)
             recoveryGoal = profile.goals.first
-            activityContext = profile.activityContext ?? ""
+            activityContext = sanitizedActivityContext(profile.activityContext) ?? ""
             recoverySignals = Dictionary(
                 uniqueKeysWithValues: profile.recoverySignals.map { ($0.region, $0) }
             )
@@ -152,5 +152,18 @@ final class IntakeViewModel: ObservableObject {
             isSaving = false
             return nil
         }
+    }
+
+    private func sanitizedActivityContext(_ rawValue: String?) -> String? {
+        guard let trimmed = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+
+        let lowered = trimmed.lowercased()
+        if lowered.contains("simulator verification") || lowered.contains("seeded client profile") {
+            return nil
+        }
+
+        return trimmed
     }
 }

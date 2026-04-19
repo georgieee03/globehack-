@@ -17,6 +17,10 @@ export interface RecoveryScoreInput {
     stiffness_before: number | null;
     stiffness_after: number | null;
   }>;
+  recentAssessments: Array<{
+    movement_quality_scores: Record<string, number> | null;
+    asymmetry_scores: Record<string, number> | null;
+  }>;
   recentCheckins: Array<{
     overall_feeling: number;
   }>;
@@ -29,6 +33,7 @@ export interface RecoveryScoreResult {
   breakdown: {
     baseline: 50;
     outcomeTrend: number;
+    assessmentSignal: number;
     checkinTrend: number;
     wearableAdjustment: number;
     adherenceBonus: number;
@@ -58,15 +63,19 @@ function clamp(value: number, min: number, max: number): number {
  *    averageFeeling = mean of overall_feeling values (1–5)
  *    checkinTrend = (averageFeeling - 3) * 5, clamped to [-10, 10]
  *
- * 3. Wearable context (±10):
+ * 3. Assessment signal (±10):
+ *    movement_quality_scores are treated as 0.0–1.0 values (or 0–100 if needed)
+ *    asymmetry_scores are treated as percentages where lower is better
+ *
+ * 4. Wearable context (±10):
  *    If HRV > 50ms: +5; if HRV < 30ms: -5
  *    If sleepScore > 70: +5; if sleepScore < 50: -5
  *    Clamped to [-10, 10]
  *
- * 4. Session adherence (0–10):
+ * 5. Session adherence (0–10):
  *    adherenceBonus = sessionAdherence * 10
  *
- * Final: clamp(50 + outcomeTrend + checkinTrend + wearableAdjustment + adherenceBonus, 0, 100)
+ * Final: clamp(50 + outcomeTrend + assessmentSignal + checkinTrend + wearableAdjustment + adherenceBonus, 0, 100)
  */
 export function computeRecoveryScore(
   input: RecoveryScoreInput,
@@ -86,7 +95,37 @@ export function computeRecoveryScore(
     );
   }
 
-  // 2. Check-in trend (±10)
+  // 2. Assessment signal (±10)
+  let assessmentSignal = 0;
+  if (input.recentAssessments.length > 0) {
+    const qualityValues = input.recentAssessments.flatMap((assessment) =>
+      Object.values(assessment.movement_quality_scores ?? {}).map((value) =>
+        value > 1 ? value / 100 : value
+      )
+    );
+    const asymmetryValues = input.recentAssessments.flatMap((assessment) =>
+      Object.values(assessment.asymmetry_scores ?? {})
+    );
+
+    if (qualityValues.length > 0) {
+      const averageQuality =
+        qualityValues.reduce((sum, value) => sum + value, 0) /
+        qualityValues.length;
+      assessmentSignal += clamp((averageQuality - 0.5) * 12, -6, 6);
+    }
+
+    if (asymmetryValues.length > 0) {
+      const averageAsymmetry =
+        asymmetryValues.reduce((sum, value) => sum + value, 0) /
+        asymmetryValues.length;
+      const symmetryScore = clamp(1 - averageAsymmetry / 100, 0, 1);
+      assessmentSignal += clamp((symmetryScore - 0.5) * 8, -4, 4);
+    }
+
+    assessmentSignal = clamp(assessmentSignal, -10, 10);
+  }
+
+  // 3. Check-in trend (±10)
   let checkinTrend = 0;
   if (input.recentCheckins.length > 0) {
     const avgFeeling =
@@ -95,7 +134,7 @@ export function computeRecoveryScore(
     checkinTrend = clamp((avgFeeling - 3) * 5, -10, 10);
   }
 
-  // 3. Wearable context (±10)
+  // 4. Wearable context (±10)
   let wearableAdjustment = 0;
   if (input.wearableContext) {
     if (input.wearableContext.hrv > 50) wearableAdjustment += 5;
@@ -107,12 +146,12 @@ export function computeRecoveryScore(
     wearableAdjustment = clamp(wearableAdjustment, -10, 10);
   }
 
-  // 4. Session adherence (0–10)
+  // 5. Session adherence (0–10)
   const adherenceBonus = clamp(input.sessionAdherence * 10, 0, 10);
 
-  // 5. Final score
+  // 6. Final score
   const score = clamp(
-    50 + outcomeTrend + checkinTrend + wearableAdjustment + adherenceBonus,
+    50 + outcomeTrend + assessmentSignal + checkinTrend + wearableAdjustment + adherenceBonus,
     0,
     100,
   );
@@ -122,6 +161,7 @@ export function computeRecoveryScore(
     breakdown: {
       baseline: 50,
       outcomeTrend,
+      assessmentSignal,
       checkinTrend,
       wearableAdjustment,
       adherenceBonus,

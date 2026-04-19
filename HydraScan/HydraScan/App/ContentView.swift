@@ -143,14 +143,20 @@ private struct HomeTabView: View {
                             )
                     }
 
-                    RecoveryScoreView(recoveryScore: viewModel.recoveryScore)
+                    if let recoveryScore = viewModel.recoveryScore {
+                        RecoveryScoreView(recoveryScore: recoveryScore)
+                    } else if viewModel.isLoading {
+                        ProgressView("Loading recovery score...")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .fill(Color(.secondarySystemBackground))
+                            )
+                    }
                     StreakView(
                         gamificationState: viewModel.gamificationState,
                         encouragementMessage: viewModel.encouragementMessage
-                    )
-                    BeforeAfterView(
-                        firstAssessment: viewModel.assessments.last,
-                        latestAssessment: viewModel.assessments.first
                     )
 
                     VStack(alignment: .leading, spacing: 12) {
