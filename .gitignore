@@ -4,6 +4,8 @@ node_modules/
 # Build outputs
 dist/
 .turbo/
+.next/
+*.tsbuildinfo
 
 # Environment and local secrets
 .env
@@ -14,5 +16,6 @@ dist/
 
 # Logs and editor noise
 *.log
+.vscode/
 .DS_Store
 Thumbs.db
