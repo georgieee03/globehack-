@@ -6,22 +6,22 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
 
 ## Tasks
 
-- [ ] 1. Database migrations and indexes
-  - [ ] 1.1 Create analytics views migration
-    - Create `backend/supabase/migrations/00013_create_analytics_views.sql` with views: `clinic_metrics_v`, `practitioner_metrics_v`, `device_utilization_v`, `protocol_effectiveness_v`
+- [x] 1. Database migrations and indexes
+  - [x] 1.1 Create analytics views migration
+    - Create `backend/supabase/migrations/00014_create_analytics_views.sql` with views: `clinic_metrics_v`, `practitioner_metrics_v`, `device_utilization_v`, `protocol_effectiveness_v`, `client_retention_v`
     - All views include `clinic_id` for RLS filtering
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 10.1, 10.2, 10.3_
 
-  - [ ] 1.2 Create performance indexes migration
-    - Create `backend/supabase/migrations/00014_create_performance_indexes.sql` with indexes on `outcomes(session_id, recorded_by)`, `recovery_graph(client_id, body_region, recorded_at DESC)`, `sessions(clinic_id, status)`, `sessions(practitioner_id, status)`
+  - [x] 1.2 Create performance indexes migration
+    - Create `backend/supabase/migrations/00015_create_performance_indexes.sql` with indexes on `outcomes(session_id, recorded_by)`, `recovery_graph(client_id, body_region, recorded_at DESC)`, `sessions(clinic_id, status)`, `sessions(practitioner_id, status)`, plus JSONB indexes for protocol queries
     - _Requirements: 17.2, 17.3_
 
-  - [ ] 1.3 Create trend columns migration
-    - Create `backend/supabase/migrations/00015_add_trend_columns.sql` adding `trend_classification`, `needs_attention`, and `next_visit_signal` columns to `client_profiles`
+  - [x] 1.3 Create trend columns migration
+    - Create `backend/supabase/migrations/00016_add_trend_columns.sql` adding `trend_classification`, `needs_attention`, and `next_visit_signal` columns to `client_profiles`
     - _Requirements: 6.3, 6.4, 7.5_
 
-- [ ] 2. Outcome Recorder Edge Function
-  - [ ] 2.1 Implement outcome validation and storage
+- [x] 2. Outcome Recorder Edge Function
+  - [x] 2.1 Implement outcome validation and storage
     - Create `backend/supabase/functions/outcome-recorder/index.ts`
     - Accept POST with OutcomeRequest body
     - Validate stiffness_before/after are integers 0-10, soreness_after is integer 0-10, repeat_intent is "yes"/"maybe"/"no"
@@ -32,7 +32,7 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - Return 401 for unauthenticated, 404 for missing session
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 3.1, 3.4_
 
-  - [ ] 2.2 Implement Recovery Graph update on outcome
+  - [x] 2.2 Implement Recovery Graph update on outcome
     - After outcome storage, insert recovery_graph points:
       - stiffness_after → metric_type "stiffness", source "session_outcome"
       - soreness_after → metric_type "soreness", source "session_outcome"
@@ -40,20 +40,20 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - Set body_region from session's target region in SessionConfig
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-  - [ ] 2.3 Implement Recovery Score recomputation
+  - [x] 2.3 Implement Recovery Score recomputation
     - After graph update, call computeRecoveryScore (from Spec 3's recovery-intelligence)
     - Insert new score into recovery_graph with metric_type "recovery_score", body_region "general"
     - Clamp score to 0-100
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 2.4 Implement trend analysis
+  - [x] 2.4 Implement trend analysis
     - Query last 3 outcomes for the client
     - Compute trend: "improving" (stiffness decreasing >1), "plateau" (change ≤1), "regressing" (stiffness increasing >1), "insufficient_data" (<3 sessions)
     - Store trend_classification on client_profiles
     - Set needs_attention=true on plateau detection
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 2.5 Implement next-visit signal generation
+  - [x] 2.5 Implement next-visit signal generation
     - Compute next_visit_signal based on Recovery Score + trend:
       - Score <40 + regressing → priority, 1-2 days
       - Score 40-70 + plateau → soon, 3-5 days
@@ -74,39 +74,39 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
   - Verify outcome submission → graph update → score recomputation → trend → signal works end-to-end
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Outcome-to-SessionConfig linkage (Learning Loop)
-  - [ ] 4.1 Implement learning loop query functions
+- [x] 4. Outcome-to-SessionConfig linkage (Learning Loop)
+  - [x] 4.1 Implement learning loop query functions
     - Create query function to find outcomes by SessionConfig parameters (body region, recovery goal, intensity range)
     - Create query function to return prior session outcomes with associated SessionConfig for a client, ordered by completion date descending
     - Ensure session_id FK on every outcome provides direct join to session_config, recommended_config, and practitioner_edits
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 5. Clinic Analytics Edge Function
-  - [ ] 5.1 Implement aggregate metrics action
+- [x] 5. Clinic Analytics Edge Function
+  - [x] 5.1 Implement aggregate metrics action
     - Create `backend/supabase/functions/clinic-analytics/index.ts` with action-based routing
     - `aggregate` action: query clinic_metrics_v for total sessions, avg improvement, device utilization, client retention within configurable date range (default 30 days)
     - All queries scoped by authenticated admin's clinic_id via RLS
     - Return within 2 seconds
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 21.1_
 
-  - [ ] 5.2 Implement per-practitioner metrics action
+  - [x] 5.2 Implement per-practitioner metrics action
     - `practitioner` action: query practitioner_metrics_v for total sessions, avg sessions/day, avg outcome score, client count per practitioner
     - Compute avg outcome score as mean of (stiffness_before - stiffness_after) / 10
     - Anonymize: return first name or initials only, not full identifying info
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-  - [ ] 5.3 Implement protocol effectiveness action
+  - [x] 5.3 Implement protocol effectiveness action
     - `protocol` action: query protocol_effectiveness_v correlating SessionConfig params with avg outcome scores
     - Rank top 5 configurations by avg outcome score
     - Break down by body region
     - Mark configs with <5 sessions as "limited data", exclude from ranking
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-  - [ ] 5.4 Implement device utilization action
+  - [x] 5.4 Implement device utilization action
     - `device` action: query device_utilization_v for sessions per device, status distribution, maintenance frequency
     - _Requirements: 8.3_
 
-  - [ ] 5.5 Implement ROI calculator action
+  - [x] 5.5 Implement ROI calculator action
     - `roi` action: compute total estimated revenue, avg revenue per client, estimated client lifetime value, payback period, conversion rate
     - Accept configurable per_session_revenue (default $15) and monthly_subscription_cost
     - Use wellness-appropriate language in all response text
@@ -118,8 +118,8 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - **Property 9: ROI computation consistency**
     - **Validates: Requirements 10.4, 13.2, 13.4, 21.1**
 
-- [ ] 6. Export Service Edge Function
-  - [ ] 6.1 Implement CSV export
+- [x] 6. Export Service Edge Function
+  - [x] 6.1 Implement CSV export
     - Create `backend/supabase/functions/export-service/index.ts`
     - Generate CSV with session summary data, aggregate metrics, protocol effectiveness
     - Scope all data by admin's clinic_id via RLS
@@ -128,7 +128,7 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - Upload to Supabase Storage, return signed download URL
     - _Requirements: 12.1, 12.3, 12.4, 12.5_
 
-  - [ ] 6.2 Implement PDF export
+  - [x] 6.2 Implement PDF export
     - Generate PDF with clinic summary header, aggregate metrics, per-practitioner summary, device utilization
     - Scope by RLS, anonymize client names
     - _Requirements: 12.2, 12.3, 12.4_
@@ -207,8 +207,8 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - Ensure all interactive elements have accessible labels and meet WCAG 2.1 AA contrast
     - _Requirements: 16.4, 16.5_
 
-- [ ] 11. Demo Data and Demo Flow
-  - [ ] 11.1 Create demo seed data
+- [x] 11. Demo Data and Demo Flow
+  - [x] 11.1 Create demo seed data
     - Create `backend/supabase/seed/demo-personas.sql` with 3 client personas (Alex Rivera improving, Jordan Chen plateau, Sam Patel regressing), each with 3-5 sessions, outcomes, and visible Recovery Score trends
     - _Requirements: 15.2_
 
@@ -225,8 +225,8 @@ This plan implements the Post-Session Outcomes & Learning Loop (Phase 7), Analyt
     - Include prepared answers for judge questions
     - _Requirements: 15.1, 15.3, 15.4_
 
-- [ ] 12. Wellness Language Audit
-  - [ ] 12.1 Create wellness audit script
+- [x] 12. Wellness Language Audit
+  - [x] 12.1 Create wellness audit script
     - Create `scripts/wellness-audit.ts` that scans all user-facing strings in dashboard components, iOS views, seed data, and LLM prompts against `validateWellnessLanguage`
     - Check for forbidden terms: "diagnos", "treat", "cure", "medical device", "clinical", "prescription", "medication", "drug", "heal", "therapy", "patient"
     - Verify "Hydrawav3" (lowercase w) usage
