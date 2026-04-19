@@ -16,6 +16,9 @@ HydraScan/HydraScan/Config/LocalSecrets.xcconfig
 # Supabase local state
 .supabase/
 
+# Insforge local state and credentials
+.insforge/
+
 # Logs and editor noise
 *.log
 .vscode/
