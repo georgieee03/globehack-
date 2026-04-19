@@ -182,7 +182,7 @@ private struct HomeTabView: View {
 
                                         Spacer()
 
-                                        HydraBrandEmblem(size: 36, reversed: true)
+                                        HydraBrandLogo(height: 20, maxWidth: 120, alignment: .trailing)
                                     }
 
                                     HydraMetricRow(
@@ -225,7 +225,7 @@ private struct HomeTabView: View {
 
                                 Spacer()
 
-                                HydraBrandEmblem(size: 34)
+                                HydraBrandLogo(height: 18, maxWidth: 110, alignment: .trailing)
                             }
 
                             Button {
@@ -308,7 +308,7 @@ private struct ProfileView: View {
                     HydraCard {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack(alignment: .top, spacing: 14) {
-                                HydraBrandEmblem(size: 40)
+                                HydraBrandLogo(height: 22, maxWidth: 132)
 
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Access Identity")

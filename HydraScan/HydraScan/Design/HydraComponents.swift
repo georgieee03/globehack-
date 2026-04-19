@@ -25,76 +25,20 @@ struct HydraShellBackground: View {
     }
 }
 
-struct HydraBrandWordmark: View {
-    var size: CGFloat = 30
-    var reversed = false
-
-    private var textColor: Color {
-        reversed ? HydraTheme.Colors.ink : HydraTheme.Colors.primaryText
-    }
+struct HydraBrandLogo: View {
+    var height: CGFloat = 30
+    var maxWidth: CGFloat? = nil
+    var alignment: Alignment = .leading
 
     var body: some View {
-        Group {
-            if let image = UIImage(named: reversed ? "HydraWordmarkReversed" : "HydraWordmark") {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: size)
-            } else {
-                HStack(spacing: size * 0.06) {
-                    Text("HYDRASCA")
-                        .font(HydraTypography.wordmark(size * 0.88))
-                        .tracking(size * 0.08)
-                        .foregroundStyle(textColor)
-                        .lineLimit(1)
-
-                    HydraBrandEmblem(size: size, reversed: reversed)
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("HydraScan")
-    }
-}
-
-struct HydraBrandEmblem: View {
-    var size: CGFloat = 28
-    var reversed = false
-
-    var body: some View {
-        Group {
-            if let image = UIImage(named: reversed ? "HydraEmblemReversed" : "HydraEmblem") {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: size, height: size)
-            } else {
-                ZStack {
-                    Circle()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [HydraTheme.Colors.goldSoft, HydraTheme.Colors.goldDeep],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: max(2, size * 0.1)
-                        )
-                        .background(
-                            Circle()
-                                .fill(reversed ? HydraTheme.Colors.ivory.opacity(0.95) : HydraTheme.Colors.surfaceRaised)
-                        )
-
-                    Text("N")
-                        .font(HydraTypography.wordmark(size * 0.62))
-                        .foregroundStyle(
-                            reversed
-                                ? HydraTheme.Colors.goldDeep
-                                : HydraTheme.Colors.goldSoft
-                        )
-                }
-            }
-        }
-        .frame(width: size, height: size)
+        Image("Logo")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
+            .frame(maxWidth: maxWidth, alignment: alignment)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("HydraScan")
     }
 }
 
@@ -169,7 +113,7 @@ struct HydraPageHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if showsWordmark {
-                HydraBrandWordmark(size: 30)
+                HydraBrandLogo(height: 30)
             }
 
             HydraSectionHeader(eyebrow: eyebrow, title: title, subtitle: subtitle)
@@ -187,7 +131,7 @@ struct HydraBrandStage: View {
     var body: some View {
         HydraCard(role: role, padding: 24) {
             VStack(alignment: .leading, spacing: 18) {
-                HydraBrandWordmark(size: 34, reversed: role == .ivory)
+                HydraBrandLogo(height: 34)
 
                 if let eyebrow {
                     HydraEyebrow(text: eyebrow)

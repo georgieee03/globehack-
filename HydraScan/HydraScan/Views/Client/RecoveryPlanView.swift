@@ -297,7 +297,7 @@ struct RecoveryPlanView: View {
 
                                 Spacer()
 
-                                HydraBrandEmblem(size: 30)
+                                HydraBrandLogo(height: 18, maxWidth: 108, alignment: .trailing)
                             }
 
                             FlowLayout(spacing: 8, lineSpacing: 8) {

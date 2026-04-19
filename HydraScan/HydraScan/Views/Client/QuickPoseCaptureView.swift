@@ -148,7 +148,7 @@ struct QuickPoseCaptureView: View {
                 HStack {
                     HydraTelemetryBadge(label: "Frames", value: "\(viewModel.capturedFrameCount)")
                     Spacer()
-                    HydraBrandEmblem(size: 34)
+                    HydraBrandLogo(height: 18, maxWidth: 110, alignment: .trailing)
                 }
                 .padding(20)
             }

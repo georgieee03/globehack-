@@ -17,7 +17,7 @@ struct StreakView: View {
 
                 Spacer()
 
-                HydraBrandEmblem(size: 42)
+                HydraBrandLogo(height: 22, maxWidth: 132, alignment: .trailing)
             }
 
             HStack(spacing: 12) {

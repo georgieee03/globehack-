@@ -1,185 +1,365 @@
 # HydraScan
 
-**A practitioner-first recovery intelligence layer for the Hydrawav3 ecosystem.**
+**HydraScan is a native iOS recovery companion for the Hydrawav ecosystem.**
 
-HydraScan captures client movement and recovery signals with QuickPose, converts them into a live **Recovery Graph**, recommends a personalized Hydrawav3 session, launches that session on a real **Hydrawav3Pro** device through the **MQTT Control API**, and tracks outcomes across visits so recovery becomes continuous instead of isolated.
+It helps a client move from **guided intake and live movement capture** to a structured **recovery summary**, a continuity-aware **recovery score**, and an auto-surfaced **recovery plan** built from a curated, safety-reviewed exercise video catalog.
 
-## Overview
+This repo now reflects a real product workflow rather than a demo shell:
+- live QuickPose-based onboarding capture
+- real Supabase-backed auth and persistence
+- structured assessment and recovery intelligence
+- daily check-ins and post-session outcomes
+- a redesigned dark-first Hydrawav3-matched UI system
+- a new recovery-plan subsystem with instructional videos and completion logging
 
-Hydrawav3 is built around a fast, hands-off wellness session, but the larger recovery workflow around that session is still fragmented. HydraScan closes that gap with an integrated software layer that helps practitioners understand the body before the session, personalize the protocol during the session, and continue the recovery journey after the visit.
+## Why We Built It
 
-HydraScan is designed for the exact practitioner environments Hydrawav3 serves:
-- Physical therapy
-- Chiropractic care
-- Sports performance and recovery
-- Wellness centers and recovery studios
+Hydrawav sessions can be fast and effective, but the software experience around recovery is often fragmented. People may know they feel tight, sore, or limited, but they usually do not get a clear bridge from:
+- what they reported
+- what their movement scan showed
+- what changed over time
+- what they should do next
 
-## Core Value
+HydraScan was built to close that gap.
 
-HydraScan turns a 9-minute Hydrawav3 session into a persistent recovery intelligence loop.
+The goal was to create an experience that feels:
+- clinically grounded
+- visually premium
+- fast enough for real-world use
+- useful before, during, and after a recovery session
 
-Instead of relying on intuition alone, practitioners get a structured, fast, and defensible workflow built around:
-- movement capture
-- recovery signal mapping
-- protocol recommendation
-- real device orchestration
-- post-session learning and continuity
+## What The Product Does Today
 
-## What HydraScan Does
+### 1. Client authentication and onboarding
+HydraScan supports a real client app flow with Supabase-backed authentication, onboarding, clinic association, and session restore.
 
-### 1. Rapid intake and assessment
-Clients sign in, complete a lightweight recovery intake, highlight target body zones, and perform guided movement capture through QuickPose.
+The app keeps a typed client session context with:
+- auth user identity
+- app user identity
+- clinic identity
+- role
+- `client_profiles.id`
 
-HydraScan uses this input to generate a **60-second Recovery Map** that surfaces:
-- affected regions
-- movement asymmetries
-- range-of-motion signals
-- recovery goals
-- recent context from session history and wearables
+### 2. Guided 7-step onboarding scan
+The client completes a fixed onboarding capture flow powered by QuickPose. The intake scan now runs as a true seven-step sequence:
+- Standing Front
+- Standing Side
+- Shoulder Flexion
+- Squat
+- Hip Hinge
+- Right Single-Leg Balance
+- Left Single-Leg Balance
 
-### 2. Personalized session recommendation
-HydraScan converts assessment data into a practitioner-ready protocol recommendation, including:
-- Sun/Moon pad placement guidance
-- modality mix
-- intensity
-- sequence
-- duration
-- confidence and rationale
+The app captures live camera input, overlays real joint tracking, computes step-level metrics, and persists structured scan output instead of flattening everything into a single summary blob too early.
 
-### 3. Real Hydrawav3 device control
-Approved recommendations are translated into a typed session configuration and sent to a target Hydrawav3Pro unit through the official MQTT publish workflow.
+### 3. Recovery summary and continuity
+After capture, HydraScan builds a session report with:
+- range of motion
+- asymmetry
+- movement quality
+- pose-by-pose findings
+- recovery-map context
 
-HydraScan supports the full session lifecycle:
-- launch
-- pause
-- resume
-- stop
-- event logging
-
-### 4. Outcomes and continuity
-After the session, HydraScan captures client and practitioner feedback, records re-test values, updates the Recovery Graph, and improves the next recommendation.
-
-This creates continuity between visits instead of treating each session as an isolated event.
-
-## How It Works
-
-HydraScan is structured around the Hydrawav3 flywheel:
-
-### Know
-The client completes intake and guided movement capture. HydraScan fuses QuickPose-derived pose, joint angle, ROM, and asymmetry data with recovery signals, wearables, and profile history to generate a Recovery Map.
-
-### Act
-The practitioner reviews the recommendation, adjusts parameters if needed, selects a device, and launches a session on real Hydrawav3 hardware.
-
-### Learn
-HydraScan stores session outcomes against the exact configuration that ran, updates progress trends, and strengthens future recommendations over time.
-
-## User Experience
-
-### Client app
-The client experience is designed to be fast, clear, and low-friction:
-- secure sign-in
-- guided intake
-- camera-based movement capture
-- body-zone highlighting
+The app also supports:
+- daily check-ins
 - post-session feedback
-- follow-up recovery prompts
-- ongoing progress visibility
+- recovery score rendering
+- session-awareness from the backend
+- before/after continuity views
 
-### Practitioner console
-The practitioner experience is designed for real clinic flow:
-- 60-second Recovery Map review
-- protocol approval in under two minutes
-- device selection and launch
-- live session lifecycle controls
-- post-session re-test logging
-- outcomes and trend views
+### 4. Auto-surfaced recovery plans
+HydraScan now includes a recovery-plan subsystem that turns:
+- primary body regions
+- recovery signals
+- goals
+- activity context
+- latest assessment findings
+- recovery-map highlights
 
-### Clinic administration
-HydraScan also supports clinic-level operations:
-- role-based access
-- device registry management
-- workspace visibility
-- outcome trends across clients
-- session performance insights
+into a patient-facing plan built from a curated, reviewed video catalog.
 
-## Platform Fit
+The current implementation supports:
+- versioned recovery plans
+- ordered plan items
+- required and optional items
+- video metadata and delivery links
+- manual completion logging
+- started / completed / skipped / stopped states
+- safety pausing for red-flag responses
 
-HydraScan is not a generic movement app. It is built specifically as a native software layer for Hydrawav3.
+### 5. Premium mobile UI
+The client app was fully redesigned to match the Hydrawav3 visual language:
+- dark-first shell
+- warm ivory secondary surfaces
+- editorial serif + clean sans typography
+- premium cards, capsules, telemetry modules, and branded launch treatment
+- integrated HydraScan logo asset across the app
 
-It aligns directly with the Hydrawav3 recovery loop:
-- **Before the session:** faster understanding of the body
-- **During the session:** smarter personalization and device-ready protocol output
-- **After the session:** continuity, outcomes tracking, and learning
+## Highlights
 
-## Technology
+- **Live movement capture** with QuickPose camera overlays on device
+- **Structured step-level assessments** instead of a shallow aggregate-only scan
+- **Recovery intelligence backend** built on typed shared contracts
+- **Curated recovery plans** with instructional exercise videos
+- **Manual adherence logging** separated cleanly from Hydrawav treatment sessions
+- **Client-first mobile experience** with a cohesive submission-ready UI
 
-### QuickPose movement layer
-HydraScan uses QuickPose as its movement intelligence engine for on-device pose and motion analysis.
+## Submission Story
 
-QuickPose capabilities used in HydraScan include:
-- 33-point full-body pose detection
-- range of motion analysis
-- joint angle analysis
-- raw pose output
-- feedback overlays
-- on-device processing
+### Inspiration
+We were inspired by the gap between “I scanned my movement” and “I know what to do next.”
 
-### QuickPose frameworks
-HydraScan is designed around the QuickPose iOS module stack:
-- `QuickPoseCore`
-- `QuickPoseMP-full`
-- `QuickPoseCamera`
-- `QuickPoseSwiftUI`
+Most recovery tools either stop at data capture or jump straight into generic content. We wanted HydraScan to feel like a real recovery companion: capture live movement, interpret it clearly, and translate it into the next best action in a way that feels supportive, premium, and grounded in real client context.
 
-### Hydrawav3 session layer
-HydraScan integrates with the Hydrawav3Pro MQTT Control API for:
-- authentication
-- session configuration publishing
-- device targeting by MAC address
-- lifecycle commands
+### How we built it
+HydraScan is built as a multi-part system:
+- a native SwiftUI iOS app in `HydraScan/`
+- shared TypeScript contracts in `shared/`
+- Supabase migrations and Edge Functions in `backend/`
+- a workspace structure managed with `pnpm` and Turbo
 
-### Application stack
-- SwiftUI client experience
-- iPad or web-based practitioner console
-- multi-tenant backend
-- typed recovery and session models
-- secure role-based access
+The iOS app uses QuickPose for live capture and Supabase for auth, data access, edge functions, and realtime updates. The backend owns the business logic for recovery intelligence, outcomes, check-ins, and now recovery-plan generation.
 
-## Product Principles
+### What we learned
+The biggest technical lesson was that **step-level scan data matters**.
 
-HydraScan is built around a few non-negotiable principles:
-- **Practitioner-first** — supports the practitioner rather than replacing them
-- **Clinic-compatible** — fits real throughput and decision-time constraints
-- **Personalized** — adapts to the individual instead of relying on static templates
-- **Integrated** — plugs directly into the Hydrawav3 ecosystem
-- **Wellness-positioned** — focused on recovery, mobility, and performance support
+We originally had a system that could save scan results, but not all onboarding steps were being used with the level of detail HydraScan needed. We learned that if pose data is flattened too early, you lose the ability to reason clearly about posture, hinge quality, squat mechanics, and left/right balance separately.
 
-## Who It Serves
+We also learned how much product quality depends on:
+- honest completeness states
+- careful client/backend contracts
+- robust mobile runtime behavior
+- strong design consistency
 
-HydraScan is designed for:
-- physical therapists
-- chiropractors
-- sports trainers
-- wellness centers
-- recovery studios
-- medspa and premium recovery environments
+### Challenges we faced
+- Migrating from a demo shell to a real client app without breaking working flows
+- Moving QuickPose from a debug verification surface into the main capture experience
+- Diagnosing and fixing repeated post-scan result crashes on device
+- Preserving rich onboarding scan payloads while keeping result rendering stable
+- Repairing Supabase migration history drift during live deployment
+- Designing a recovery-plan feature that uses reviewed content and respects safety constraints
 
-## Why It Matters
+## UI / UX Overhaul
 
-Hydrawav3 already delivers a differentiated in-clinic session. HydraScan expands that value into a complete recovery workflow.
+One of the major upgrades in this repo is the complete UI redesign.
 
-That means:
-- less guesswork before protocol selection
-- stronger consistency across sessions
-- better visibility into outcomes
-- more continuity between visits
-- a more defensible software layer around the device ecosystem
+The app now uses a branded design system built around:
+- a dark Hydrawav3-inspired shell
+- subtle gradient depth
+- premium cards and metric modules
+- consistent branded CTA styles
+- branded launch screen
+- integrated HydraScan PNG logo treatment
 
-## Project Statement
+This redesign was not just cosmetic. It also improved:
+- hierarchy across scan results
+- intake clarity
+- body-map usability
+- recovery-plan readability
+- trust and polish for a submission/demo setting
 
-HydraScan transforms Hydrawav3 from a powerful session delivery tool into a connected recovery operating layer.
+## Architecture
+
+### iOS app
+Located in `HydraScan/`
+
+Key areas:
+- `App/` — app shell and navigation
+- `Design/` — theme, tokens, reusable branded UI components
+- `Models/` — typed Swift models for users, assessments, recovery plans, outcomes, scores
+- `Services/` — Supabase access, auth, cache, QuickPose helpers
+- `ViewModels/` — app flow and state management
+- `Views/` — auth, capture, check-in, results, profile, recovery plan
+- `Computation/` — posture, asymmetry, squat, hinge, balance, and scan assembly logic
+
+### Shared contracts
+Located in `shared/`
+
+This package provides shared TypeScript types for:
+- users
+- client profiles
+- assessments
+- QuickPose payloads
+- recovery maps and scores
+- sessions
+- outcomes
+- recovery plans
+
+### Supabase backend
+Located in `backend/`
+
+Important function areas:
+- `recovery-intelligence/` — recovery map, score, graph, rules, scan contract parsing
+- `recovery-plan-service/` — plan generation, fetch, history, completion logging
+- `checkin-recorder/` — check-in persistence and continuity updates
+- `outcome-recorder/` — outcome submission and post-session processing
+- `claim-clinic-invite/` — onboarding / clinic-claim flow
+- `hydrawav-mqtt/` and `hydrawav-auth/` — ecosystem integration scaffolding for Hydrawav device workflows
+
+## Repo structure
+
+```text
+HydraScan/   Native iOS client app
+backend/     Supabase migrations and Edge Functions
+shared/      Shared TypeScript types and constants
+dashboard/   Dashboard workspace scaffold / future admin surface
+docs/        Supporting docs
+scripts/     Utility scripts
+```
+
+## Core Features
+
+### Live capture and analysis
+- QuickPose-based live camera capture
+- seven-step onboarding scan
+- step-level posture, hinge, squat, and balance outputs
+- aggregate ROM, asymmetry, movement quality, and gait-style metrics
+
+### Recovery intelligence
+- recovery-map generation
+- recovery-score generation
+- continuity graph support
+- typed scan contract between iOS and backend
+
+### Client continuity features
+- daily check-ins
+- post-session feedback
+- real session awareness from backend state
+- assessment history and summary reporting
+
+### Recovery plan system
+- reviewed video catalog
+- recommendation rules by region / symptom / goal / trigger
+- versioned plans
+- required and optional items
+- item-level logging and safety pause behavior
+
+## Tech Stack
+
+### iOS
+- SwiftUI
+- Combine
+- QuickPoseCore
+- QuickPoseMP-full
+- QuickPoseSwiftUI
+- AVFoundation
+- Supabase Swift
+
+### Backend / shared
+- TypeScript
+- Supabase Edge Functions
+- Supabase Postgres + RLS
+- shared type package for cross-surface contracts
+- pnpm workspaces
+- Turbo
+
+## Local Development
+
+### Prerequisites
+- Xcode 17+
+- iOS 17 simulator or physical iPhone for QuickPose testing
+- Node.js + `pnpm`
+- Supabase CLI
+- QuickPose SDK key
+- Supabase project credentials
+
+### Install workspace dependencies
+
+```bash
+pnpm install
+```
+
+### Useful workspace commands
+
+```bash
+pnpm build
+pnpm typecheck
+pnpm test
+```
+
+### iOS configuration
+
+The iOS app reads local secrets from:
+
+`HydraScan/HydraScan/Config/LocalSecrets.xcconfig`
+
+Example:
+
+```xcconfig
+SUPABASE_URL = https://your-project.supabase.co
+SUPABASE_ANON_KEY = your-anon-key
+QUICKPOSE_SDK_KEY = your-quickpose-sdk-key
+
+HYDRASCAN_ENABLE_DEMO_QA_BUTTON = NO
+DEV_QA_EMAIL =
+DEV_QA_PASSWORD =
+```
+
+Then open the Xcode project:
+
+```text
+HydraScan/HydraScan.xcodeproj
+```
+
+and run the `HydraScan` scheme.
+
+### Backend local workflows
+
+From `backend/`:
+
+```bash
+npx supabase start
+npx supabase functions serve
+npx supabase db reset
+```
+
+### Deployment notes
+
+This repo currently relies on Supabase migrations plus Edge Function deployment.
+
+Recent feature work added:
+- recovery-plan catalog schema
+- recommendation rules
+- recovery-plan service
+- richer onboarding scan contract
+
+Deployment typically involves:
+- pushing migrations
+- deploying updated functions
+- verifying remote migration history is in sync
+
+## What Is In Scope Right Now
+
+HydraScan is currently strongest as a **client-facing iOS app plus recovery backend**.
+
+Implemented and demoable:
+- client auth and onboarding
+- seven-step live scan
+- recovery summary
+- recovery score / check-ins / outcomes
+- recovery plans with video items and completion logging
+- polished Hydrawav-style mobile UI
+
+Not the primary shipped surface today:
+- full practitioner authoring UI
+- full admin/catalog management UI
+- a production-ready web dashboard experience
+
+The repo contains broader ecosystem hooks and future-facing backend work, but the current submission centers on the native client experience.
+
+## Why This Matters
+
+HydraScan makes recovery software feel more continuous and actionable.
+
+Instead of a disconnected experience, the user can:
+1. complete a guided scan
+2. see what the scan found
+3. understand how they are trending
+4. get a curated plan of what to do next
+5. log completion and build continuity over time
+
+That creates a much stronger feedback loop than isolated scan results or isolated exercise links.
 
 ## Disclaimer
 
-HydraScan is positioned as a **wellness and recovery support platform**. It is intended to support practitioner workflows, movement insight, and recovery continuity. It is not a medical diagnosis system and is not designed to replace practitioner judgment.
+HydraScan is positioned as a **wellness and recovery support platform**. It is intended to support movement insight, recovery continuity, and guided exercise planning. It is not a diagnostic system and is not a replacement for licensed clinical judgment.

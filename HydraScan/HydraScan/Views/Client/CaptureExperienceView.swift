@@ -19,7 +19,7 @@ struct CaptureExperienceView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HydraBrandWordmark(size: 28)
+                    HydraBrandLogo(height: 28)
 
                     switch screen {
                     case .intake:
