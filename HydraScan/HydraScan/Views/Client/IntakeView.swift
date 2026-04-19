@@ -17,12 +17,11 @@ struct IntakeView: View {
                 totalSteps: IntakeStep.allCases.count
             )
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.currentStep.title)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                Text(viewModel.progressTitle)
-                    .foregroundStyle(.secondary)
-            }
+            HydraSectionHeader(
+                eyebrow: "Guided Intake",
+                title: viewModel.currentStep.title,
+                subtitle: viewModel.progressTitle
+            )
 
             Group {
                 switch viewModel.currentStep {
@@ -39,9 +38,7 @@ struct IntakeView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.subheadline)
+                HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
             }
 
             HStack {
@@ -49,7 +46,7 @@ struct IntakeView: View {
                     Button("Back") {
                         viewModel.goBack()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HydraButtonStyle(kind: .secondary))
                 }
 
                 Spacer()
@@ -65,7 +62,7 @@ struct IntakeView: View {
                         viewModel.advance()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HydraButtonStyle(kind: .primary))
                 .disabled(!viewModel.canContinue || viewModel.isSaving)
             }
         }

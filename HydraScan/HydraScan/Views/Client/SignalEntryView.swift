@@ -7,7 +7,8 @@ struct SignalEntryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Capture how each area is feeling so the guided session can meet you where you are.")
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.body(16))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
 
                 ForEach(viewModel.orderedSelectedRegions) { region in
                     SignalCard(
@@ -39,7 +40,8 @@ private struct SignalCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(region.displayLabel)
-                .font(.headline)
+                .font(HydraTypography.section(24))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             Picker("Signal Type", selection: $workingSignal.type) {
                 ForEach(RecoverySignalType.allCases) { type in
@@ -51,9 +53,12 @@ private struct SignalCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Severity")
+                        .font(HydraTypography.ui(14, weight: .semibold))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
                     Spacer()
                     Text("\(workingSignal.severity)/10")
-                        .foregroundStyle(.secondary)
+                        .font(HydraTypography.ui(14, weight: .semibold))
+                        .foregroundStyle(HydraTheme.Colors.secondaryText)
                 }
 
                 Slider(
@@ -77,7 +82,11 @@ private struct SignalCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(HydraTheme.fill(for: .panel))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
+                )
         )
         .onChange(of: workingSignal) { _, newValue in
             onUpdate(newValue)

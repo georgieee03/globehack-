@@ -20,7 +20,7 @@ struct TrendLineChart: View {
                             path.addLine(to: CGPoint(x: chartWidth, y: y))
                         }
                     }
-                    .stroke(Color.gray.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 6]))
+                    .stroke(HydraTheme.Colors.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 6]))
 
                     Path { path in
                         for (index, point) in points.enumerated() {
@@ -35,7 +35,30 @@ struct TrendLineChart: View {
                             }
                         }
                     }
-                    .stroke(Color.teal, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .stroke(HydraTheme.Colors.chart, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+
+                    Path { path in
+                        guard !points.isEmpty else { return }
+                        path.move(to: CGPoint(x: 0, y: chartHeight))
+
+                        for (index, point) in points.enumerated() {
+                            let x = chartWidth * CGFloat(index) / CGFloat(max(points.count - 1, 1))
+                            let normalized = CGFloat(point.value - minValue) / CGFloat(max(maxValue - minValue, 1))
+                            let y = chartHeight - (normalized * chartHeight)
+
+                            path.addLine(to: CGPoint(x: x, y: y))
+                        }
+
+                        path.addLine(to: CGPoint(x: chartWidth, y: chartHeight))
+                        path.closeSubpath()
+                    }
+                    .fill(
+                        LinearGradient(
+                            colors: [HydraTheme.Colors.chartFill, Color.clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
 
                     ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
                         let x = chartWidth * CGFloat(index) / CGFloat(max(points.count - 1, 1))
@@ -43,7 +66,7 @@ struct TrendLineChart: View {
                         let y = chartHeight - (normalized * chartHeight)
 
                         Circle()
-                            .fill(Color.teal)
+                            .fill(HydraTheme.Colors.chart)
                             .frame(width: 10, height: 10)
                             .position(x: x, y: y)
                     }
@@ -53,8 +76,8 @@ struct TrendLineChart: View {
                 HStack {
                     ForEach(points) { point in
                         Text(point.dayLabel)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(HydraTypography.ui(12, weight: .medium))
+                            .foregroundStyle(HydraTheme.Colors.secondaryText)
                             .frame(maxWidth: .infinity)
                     }
                 }

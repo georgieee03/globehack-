@@ -40,7 +40,19 @@ struct ContentView: View {
         } else if authViewModel.isClientReady, let currentUser = authViewModel.currentUser {
             mainTabs(for: currentUser)
         } else {
-            ProgressView("Loading HydraScan…")
+            ZStack {
+                HydraShellBackground()
+                HydraCard {
+                    HStack(spacing: 14) {
+                        ProgressView()
+                            .tint(HydraTheme.Colors.gold)
+                        Text("Loading your HydraScan recovery environment…")
+                            .font(HydraTypography.body(15, weight: .medium))
+                            .foregroundStyle(HydraTheme.Colors.primaryText)
+                    }
+                }
+                .padding(HydraTheme.Spacing.page)
+            }
         }
     }
 
@@ -85,7 +97,7 @@ struct ContentView: View {
                 }
                 .tag(AppTab.profile)
         }
-        .tint(.teal)
+        .tint(HydraTheme.Colors.gold)
     }
 }
 
@@ -111,90 +123,95 @@ private struct HomeTabView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("HydraScan")
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        Text("Welcome back, \(viewModel.clientName).")
-                            .font(.title3.weight(.semibold))
-                        Text("Your recovery overview keeps the assessment, session, and follow-up loop in one place.")
-                            .foregroundStyle(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: 22) {
+                    HydraPageHeader(
+                        eyebrow: "Recovery Overview",
+                        title: "Welcome back, \(viewModel.clientName).",
+                        subtitle: "Your assessments, sessions, and follow-up signals stay aligned in one premium recovery dashboard."
+                    )
 
                     if viewModel.hasActiveSession {
-                        Text(viewModel.activeSessionBanner)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color.orange.opacity(0.12))
-                            )
+                        HydraStatusBanner(
+                            message: viewModel.activeSessionBanner,
+                            tone: .warning,
+                            icon: "bolt.fill"
+                        )
                     }
 
                     if let syncStatusMessage = viewModel.syncStatusMessage {
-                        Text(syncStatusMessage)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color.teal.opacity(0.12))
-                            )
+                        HydraStatusBanner(
+                            message: syncStatusMessage,
+                            tone: .success,
+                            icon: "arrow.triangle.2.circlepath.circle.fill"
+                        )
                     }
 
                     if let recoveryScore = viewModel.recoveryScore {
-                        RecoveryScoreView(recoveryScore: recoveryScore)
+                        HydraCard {
+                            RecoveryScoreView(recoveryScore: recoveryScore)
+                        }
                     } else if viewModel.isLoading {
-                        ProgressView("Loading recovery score...")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
-                            )
-                    }
-                    StreakView(
-                        gamificationState: viewModel.gamificationState,
-                        encouragementMessage: viewModel.encouragementMessage
-                    )
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Next Up")
-                            .font(.headline)
-                        Text("Focus regions: \(viewModel.primaryRegionsSummary)")
-                            .foregroundStyle(.secondary)
-
-                        Button {
-                            onStartCapture()
-                        } label: {
-                            Label("Start today's guided capture", systemImage: "camera.viewfinder")
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        HydraCard {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .tint(HydraTheme.Colors.gold)
+                                Text("Updating your latest recovery score…")
+                                    .font(HydraTypography.body(15, weight: .medium))
+                                    .foregroundStyle(HydraTheme.Colors.secondaryText)
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-
-                        Button {
-                            onOpenCheckIn()
-                        } label: {
-                            Label("Log a quick daily check-in", systemImage: "flame.fill")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.bordered)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color(.secondarySystemBackground))
-                    )
+
+                    HydraCard(role: .panel) {
+                        StreakView(
+                            gamificationState: viewModel.gamificationState,
+                            encouragementMessage: viewModel.encouragementMessage
+                        )
+                    }
+
+                    HydraCard {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Next Up")
+                                        .font(HydraTypography.section(26))
+                                        .foregroundStyle(HydraTheme.Colors.primaryText)
+                                    Text("Focus regions: \(viewModel.primaryRegionsSummary)")
+                                        .font(HydraTypography.body(15))
+                                        .foregroundStyle(HydraTheme.Colors.secondaryText)
+                                }
+
+                                Spacer()
+
+                                HydraBrandEmblem(size: 34)
+                            }
+
+                            Button {
+                                onStartCapture()
+                            } label: {
+                                Label("Start today’s guided capture", systemImage: "camera.viewfinder")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .primary))
+
+                            Button {
+                                onOpenCheckIn()
+                            } label: {
+                                Label("Log a quick daily check-in", systemImage: "waveform.path.ecg")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .secondary))
+                        }
+                    }
 
                     if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
+                        HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
                     }
                 }
-                .padding(24)
+                .padding(HydraTheme.Spacing.page)
             }
-            .navigationTitle("Recovery")
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
             .task(id: refreshToken) {
                 await viewModel.load()
                 viewModel.startSessionAwarenessStream()
@@ -211,47 +228,55 @@ private struct ProfileView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(viewModel.currentUser?.fullName ?? "HydraScan Client")
-                        .font(.title.weight(.semibold))
-                    Text(viewModel.currentUser?.email ?? viewModel.authUser?.email ?? "Signed in with HydraScan auth")
-                        .foregroundStyle(.secondary)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    HydraPageHeader(
+                        eyebrow: "Profile & Access",
+                        title: viewModel.currentUser?.fullName ?? "HydraScan Client",
+                        subtitle: viewModel.currentUser?.email ?? viewModel.authUser?.email ?? "Signed in with HydraScan auth"
+                    )
 
-                if let clinicName = viewModel.sessionContext?.clinic?.name {
-                    Label(clinicName, systemImage: "cross.case")
-                        .foregroundStyle(.secondary)
-                }
+                    if let clinicName = viewModel.sessionContext?.clinic?.name {
+                        HydraStatusBanner(message: clinicName, tone: .neutral, icon: "cross.case.fill")
+                    }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Environment")
-                        .font(.headline)
-                    Text("Supabase URL: \(HydraScanConstants.supabaseURLString)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Text("Session and device controls should route through Supabase Edge Functions and Realtime updates, not direct Hydrawav API calls from the app.")
-                        .foregroundStyle(.secondary)
-                }
+                    HydraCard(role: .ivory) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Connected Environment")
+                                .font(HydraTypography.section(28))
+                                .foregroundStyle(HydraTheme.Colors.ink)
+
+                            Text("Supabase URL: \(HydraScanConstants.supabaseURLString)")
+                                .font(HydraTypography.body(14, weight: .medium))
+                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+
+                            Text("Session and device controls route through Supabase Edge Functions and Realtime updates instead of direct Hydrawav API calls.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                        }
+                    }
 
 #if canImport(QuickPoseCore) && canImport(QuickPoseSwiftUI)
-                NavigationLink("QuickPose Verification Lab") {
-                    QuickPoseVerificationView()
-                }
-                .buttonStyle(.bordered)
+                    NavigationLink {
+                        QuickPoseVerificationView()
+                    } label: {
+                        Label("Open QuickPose Verification Lab", systemImage: "scope")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(HydraButtonStyle(kind: .secondary))
 #endif
 
-                Button("Sign Out") {
-                    Task {
-                        await viewModel.signOut()
+                    Button("Sign Out") {
+                        Task {
+                            await viewModel.signOut()
+                        }
                     }
+                    .buttonStyle(HydraButtonStyle(kind: .primary))
                 }
-                .buttonStyle(.borderedProminent)
-
-                Spacer()
+                .padding(HydraTheme.Spacing.page)
             }
-            .padding(24)
-            .navigationTitle("Profile")
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
         }
     }
 }
@@ -261,23 +286,36 @@ private struct UnsupportedRoleView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Client Build Only")
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                Text(viewModel.unsupportedRoleMessage)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 24) {
+                HydraPageHeader(
+                    eyebrow: "Unsupported Role",
+                    title: "This build is focused on the client recovery experience.",
+                    subtitle: viewModel.unsupportedRoleMessage
+                )
+
+                HydraCard(role: .ivory) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Client-only release")
+                            .font(HydraTypography.section(28))
+                            .foregroundStyle(HydraTheme.Colors.ink)
+                        Text("The practitioner and admin surfaces stay out of this build so the current app can fully focus on client intake, guided capture, and recovery continuity.")
+                            .font(HydraTypography.body(15))
+                            .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                    }
+                }
 
                 Button("Sign Out") {
                     Task {
                         await viewModel.signOut()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HydraButtonStyle(kind: .primary))
 
-                Spacer()
+                Spacer(minLength: 0)
             }
-            .padding(24)
-            .navigationTitle("HydraScan")
+            .padding(HydraTheme.Spacing.page)
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
         }
     }
 }

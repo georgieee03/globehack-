@@ -5,33 +5,51 @@ struct StreakView: View {
     let encouragementMessage: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Momentum")
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HydraEyebrow(text: "Momentum", icon: "flame.fill")
+
                     Text("\(gamificationState.streakDays)-day streak")
-                        .font(.title3.weight(.semibold))
+                        .font(HydraTypography.section(28))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
                 }
 
                 Spacer()
 
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.orange)
+                HydraBrandEmblem(size: 42)
             }
 
-            Text("Level \(gamificationState.level) • \(gamificationState.xp) XP")
-                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                statPill(title: "Level", value: "\(gamificationState.level)")
+                statPill(title: "XP", value: "\(gamificationState.xp)")
+            }
 
             Text(encouragementMessage)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(15))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
         }
-        .padding()
+    }
+
+    private func statPill(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(HydraTypography.capsule())
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
+                .tracking(0.6)
+            Text(value)
+                .font(HydraTypography.ui(18, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.orange.opacity(0.12))
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(HydraTheme.Colors.overlay)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
+                )
         )
     }
 }

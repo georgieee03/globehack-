@@ -28,57 +28,53 @@ struct QuickPoseCaptureView: View {
                 totalSteps: viewModel.captureSteps.count
             )
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.currentStep.title)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                Text(viewModel.currentStep.instruction)
-                    .foregroundStyle(.secondary)
-            }
+            HydraSectionHeader(
+                eyebrow: "Hydra Motion Scan",
+                title: viewModel.currentStep.title,
+                subtitle: viewModel.currentStep.instruction
+            )
 
             previewCard
 
-            VStack(alignment: .leading, spacing: 12) {
-                statRow(label: "Status", value: viewModel.liveStatusText)
-                statRow(label: "Frames Captured", value: "\(viewModel.capturedFrameCount)")
-                statRow(label: "Estimated Reps", value: "\(viewModel.repCount)")
+            HydraCard(role: .panel) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Live Telemetry")
+                        .font(HydraTypography.section(26))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
 
-                if viewModel.currentMetrics.isEmpty {
-                    Text("Live ROM and asymmetry metrics will appear here as QuickPose tracks you.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(viewModel.currentMetrics) { metric in
-                        statRow(label: metric.name, value: metric.stringValue)
+                    HydraMetricRow(label: "Status", value: viewModel.liveStatusText)
+                    HydraMetricRow(label: "Frames Captured", value: "\(viewModel.capturedFrameCount)")
+                    HydraMetricRow(label: "Estimated Reps", value: "\(viewModel.repCount)")
+
+                    if viewModel.currentMetrics.isEmpty {
+                        Text("Live ROM and asymmetry metrics appear here as QuickPose tracks your movement in frame.")
+                            .font(HydraTypography.body(15))
+                            .foregroundStyle(HydraTheme.Colors.secondaryText)
+                    } else {
+                        ForEach(viewModel.currentMetrics) { metric in
+                            HydraMetricRow(label: metric.name, value: metric.stringValue)
+                        }
                     }
                 }
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
 
             Text(viewModel.supportNote)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(13, weight: .medium))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
             if !viewModel.hasConfiguredSDKKey {
-                Text("QuickPose SDK key is missing from this build.")
-                    .foregroundStyle(.orange)
-                    .font(.subheadline.weight(.semibold))
+                HydraStatusBanner(message: "QuickPose SDK key is missing from this build.", tone: .warning, icon: "key.fill")
             }
 
             if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.subheadline)
+                HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
             }
 
             HStack {
                 Button(viewModel.flowState == .capturing ? "Restart Capture" : "Start Capture") {
                     viewModel.startCapture()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HydraButtonStyle(kind: .primary))
                 .disabled(!viewModel.supportsQuickPoseRuntime || !viewModel.hasConfiguredSDKKey)
 
                 Button(viewModel.flowState == .capturing ? "Finish Early" : "Reset") {
@@ -88,17 +84,21 @@ struct QuickPoseCaptureView: View {
                         viewModel.reset()
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HydraButtonStyle(kind: .secondary))
             }
         }
         .overlay {
             if viewModel.isLoading {
-                ProgressView("Saving assessment...")
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color(.systemBackground))
-                    )
+                HydraCard {
+                    HStack(spacing: 14) {
+                        ProgressView()
+                            .tint(HydraTheme.Colors.gold)
+                        Text("Saving your latest movement session…")
+                            .font(HydraTypography.body(15, weight: .medium))
+                            .foregroundStyle(HydraTheme.Colors.primaryText)
+                    }
+                }
+                .padding(HydraTheme.Spacing.page)
             }
         }
         .onAppear {
@@ -119,7 +119,7 @@ struct QuickPoseCaptureView: View {
             previewContent
 
             LinearGradient(
-                colors: [.black.opacity(0.7), .black.opacity(0.05)],
+                colors: [HydraTheme.Colors.overlay, .clear],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -127,25 +127,39 @@ struct QuickPoseCaptureView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(viewModel.flowState == .capturing ? "\(viewModel.remainingSeconds)s" : "Live")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(HydraTypography.numeric(42))
+                    .foregroundStyle(HydraTheme.Colors.primaryText)
 
                 Text(viewModel.flowState == .capturing ? "Recording \(viewModel.currentStep.title.lowercased())" : "QuickPose preview")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.92))
+                    .font(HydraTypography.ui(15, weight: .semibold))
+                    .foregroundStyle(HydraTheme.Colors.primaryText.opacity(0.92))
 
                 if viewModel.repCount > 0 {
-                    Text("Rep Count: \(viewModel.repCount)")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.9))
+                    HydraTelemetryBadge(label: "Rep Count", value: "\(viewModel.repCount)")
                 }
             }
             .padding(20)
+
+            VStack {
+                Spacer()
+
+                HStack {
+                    HydraTelemetryBadge(label: "Frames", value: "\(viewModel.capturedFrameCount)")
+                    Spacer()
+                    HydraBrandEmblem(size: 34)
+                }
+                .padding(20)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 420)
-        .background(Color.black)
+        .background(HydraTheme.Colors.shell)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: HydraTheme.Radius.media, style: .continuous)
+                .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.32), radius: 28, x: 0, y: 16)
     }
 
     @ViewBuilder
@@ -182,38 +196,25 @@ struct QuickPoseCaptureView: View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: "camera.viewfinder")
                 .font(.system(size: 52))
-                .foregroundStyle(.white.opacity(0.88))
+                .foregroundStyle(HydraTheme.Colors.primaryText.opacity(0.88))
 
             Text("QuickPose live capture is unavailable on this runtime.")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
+                .font(HydraTypography.section(28))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             Text(viewModel.supportNote)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.84))
+                .font(HydraTypography.body(15))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(
             LinearGradient(
-                colors: [.indigo.opacity(0.8), .teal.opacity(0.72), .mint.opacity(0.52)],
+                colors: [HydraTheme.Colors.shellTop, HydraTheme.Colors.navyGlow.opacity(0.9), HydraTheme.Colors.emberGlow.opacity(0.72)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         )
-    }
-
-    private func statRow(label: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(label)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 124, alignment: .leading)
-
-            Text(value)
-                .font(.subheadline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 }
 

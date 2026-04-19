@@ -5,91 +5,117 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 24) {
-                Spacer(minLength: 12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    HydraPageHeader(
+                        eyebrow: "Clinic Connection",
+                        title: "Bring HydraScan into your care loop.",
+                        subtitle: "Finish your client setup so the app can load your clinic-linked intake, guided motion scan, and recovery history."
+                    )
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Complete Your Client Setup")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Finish your clinic connection so HydraScan can load your intake, movement capture, and recovery timeline.")
-                        .foregroundStyle(.secondary)
-                }
+                    HydraCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            if let email = viewModel.authUser?.email {
+                                HydraEyebrow(text: email, icon: "envelope")
+                            }
 
-                VStack(alignment: .leading, spacing: 16) {
-                    if let email = viewModel.authUser?.email {
-                        Label(email, systemImage: "envelope")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Your Name")
+                                    .font(HydraTypography.ui(15, weight: .semibold))
+                                    .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                                HydraInputShell {
+                                    TextField("Jordan Rivera", text: $viewModel.onboardingFullName)
+                                        .textContentType(.name)
+                                        .font(HydraTypography.body(16))
+                                        .foregroundStyle(HydraTheme.Colors.primaryText)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Clinic Invite Code")
+                                    .font(HydraTypography.ui(15, weight: .semibold))
+                                    .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                                HydraInputShell {
+                                    TextField("ABC123", text: $viewModel.clinicInviteCode)
+                                        .textInputAutocapitalization(.characters)
+                                        .autocorrectionDisabled()
+                                        .font(HydraTypography.body(16))
+                                        .foregroundStyle(HydraTheme.Colors.primaryText)
+                                }
+                            }
+                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Your Name")
-                            .font(.headline)
-                        TextField("Jordan Rivera", text: $viewModel.onboardingFullName)
-                            .textContentType(.name)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
+                    HydraCard(role: .ivory) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("What unlocks after setup")
+                                .font(HydraTypography.section(28))
+                                .foregroundStyle(HydraTheme.Colors.ink)
+
+                            onboardingFeature(
+                                icon: "figure.arms.open",
+                                text: "Targeted body-region intake aligned to how you feel today."
                             )
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Clinic Invite Code")
-                            .font(.headline)
-                        TextField("ABC123", text: $viewModel.clinicInviteCode)
-                            .textInputAutocapitalization(.characters)
-                            .autocorrectionDisabled()
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
+                            onboardingFeature(
+                                icon: "camera.viewfinder",
+                                text: "Guided QuickPose capture with clinic-aware session continuity."
                             )
+                            onboardingFeature(
+                                icon: "waveform.path.ecg",
+                                text: "Recovery Score updates driven by check-ins, outcomes, and movement data."
+                            )
+                        }
                     }
-                }
 
-                VStack(alignment: .leading, spacing: 16) {
-                    Label("Tap body regions that need support", systemImage: "figure.arms.open")
-                    Label("Move through a guided QuickPose recovery capture", systemImage: "camera.viewfinder")
-                    Label("Keep your Recovery Score moving with check-ins and outcomes", systemImage: "waveform.path.ecg")
-                }
-                .font(.headline)
-
-                if let infoMessage = viewModel.infoMessage {
-                    Text(infoMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.teal)
-                }
-
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-
-                Button("Join My Clinic") {
-                    Task {
-                        await viewModel.completeOnboarding()
+                    if let infoMessage = viewModel.infoMessage {
+                        HydraStatusBanner(message: infoMessage, tone: .success, icon: "checkmark.circle.fill")
                     }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(viewModel.isLoading)
 
-                Spacer()
+                    if let errorMessage = viewModel.errorMessage {
+                        HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
+                    }
+
+                    Button("Join My Clinic") {
+                        Task {
+                            await viewModel.completeOnboarding()
+                        }
+                    }
+                    .buttonStyle(HydraButtonStyle(kind: .primary))
+                    .disabled(viewModel.isLoading)
+                }
+                .padding(HydraTheme.Spacing.page)
             }
-            .padding(24)
-            .navigationTitle("Welcome")
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
             .overlay {
                 if viewModel.isLoading {
-                    ProgressView("Linking your clinic access...")
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color(.systemBackground))
-                        )
+                    HydraCard {
+                        HStack(spacing: 14) {
+                            ProgressView()
+                                .tint(HydraTheme.Colors.gold)
+                            Text("Linking your clinic access…")
+                                .font(HydraTypography.body(15, weight: .medium))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+                        }
+                    }
+                    .padding(HydraTheme.Spacing.page)
                 }
             }
+        }
+    }
+
+    private func onboardingFeature(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(HydraTypography.ui(16, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.goldDeep)
+                .frame(width: 28)
+
+            Text(text)
+                .font(HydraTypography.body(15))
+                .foregroundStyle(HydraTheme.Colors.inkSecondary)
         }
     }
 }

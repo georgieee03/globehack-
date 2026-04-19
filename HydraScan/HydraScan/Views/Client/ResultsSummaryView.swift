@@ -9,12 +9,11 @@ struct ResultsSummaryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Your Recovery Summary")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("These movement insights combine your intake signals, guided capture, and prior context into a simple session snapshot.")
-                        .foregroundStyle(.secondary)
-                }
+                HydraSectionHeader(
+                    eyebrow: "Session Report",
+                    title: "Your Recovery Summary",
+                    subtitle: "These movement insights combine intake, guided capture, and prior context into one clinical snapshot."
+                )
 
                 if let persistenceState {
                     statusBanner(for: persistenceState)
@@ -40,29 +39,35 @@ struct ResultsSummaryView: View {
                 }
 
                 if let recoveryMap = assessment.recoveryMap {
-                    VStack(alignment: .leading, spacing: 12) {
+                    HydraCard(role: .ivory) {
                         Text("Recovery Map")
-                            .font(.headline)
+                            .font(HydraTypography.section(28))
+                            .foregroundStyle(HydraTheme.Colors.ink)
 
                         ForEach(recoveryMap.highlightedRegions) { region in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(region.region.displayLabel)
-                                    .font(.subheadline.weight(.semibold))
+                                    .font(HydraTypography.ui(16, weight: .semibold))
+                                    .foregroundStyle(HydraTheme.Colors.ink)
                                 Text("\(region.signalType.displayLabel) • Severity \(region.severity)/10")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .font(HydraTypography.body(14, weight: .medium))
+                                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
 
                                 if let hint = region.compensationHint {
                                     Text(hint)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(HydraTypography.body(13))
+                                        .foregroundStyle(HydraTheme.Colors.inkSecondary)
                                 }
                             }
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
+                                    .fill(Color.white.opacity(0.68))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                            .stroke(HydraTheme.Colors.ivoryBorder.opacity(0.6), lineWidth: 1)
+                                    )
                             )
                         }
                     }
@@ -72,14 +77,14 @@ struct ResultsSummaryView: View {
                     Button("Start Over") {
                         onStartOver()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HydraButtonStyle(kind: .secondary))
 
                     Spacer()
 
                     Button("Share Feedback") {
                         onContinue()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HydraButtonStyle(kind: .primary))
                 }
             }
             .padding(.vertical, 12)
@@ -87,72 +92,56 @@ struct ResultsSummaryView: View {
     }
 
     private func metricCard(title: String, values: [String: String]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .panel) {
             Text(title)
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             ForEach(values.keys.sorted(), id: \.self) { key in
-                HStack {
-                    Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(values[key] ?? "")
-                        .fontWeight(.semibold)
-                }
+                HydraMetricRow(
+                    label: key.replacingOccurrences(of: "_", with: " ").capitalized,
+                    value: values[key] ?? ""
+                )
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private func statusBanner(for persistenceState: AssessmentPersistenceState) -> some View {
-        Label(persistenceState.message, systemImage: persistenceState.iconName)
-            .font(.subheadline.weight(.semibold))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(persistenceState.tintColor.opacity(0.12))
-            )
+        HydraStatusBanner(
+            message: persistenceState.message,
+            tone: {
+                switch persistenceState {
+                case .uploaded:
+                    return .success
+                case .cachedOffline:
+                    return .warning
+                }
+            }(),
+            icon: persistenceState.iconName
+        )
     }
 
     private func quickPoseSummaryCard(quickPoseData: QuickPoseResult) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard {
             Text("Scan Details")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
-            HStack {
-                Text("Landmark Frames")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(quickPoseData.landmarks.count)")
-                    .fontWeight(.semibold)
-            }
+            HydraMetricRow(label: "Landmark Frames", value: "\(quickPoseData.landmarks.count)")
 
             if quickPoseData.repSummaries.isEmpty {
                 Text("No repeated movement cycles were detected in this scan.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.body(15))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             } else {
                 ForEach(quickPoseData.repSummaries) { summary in
-                    HStack(alignment: .top) {
-                        Text(summary.movement.replacingOccurrences(of: "_", with: " ").capitalized)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(summary.count) rep\(summary.count == 1 ? "" : "s")")
-                            .fontWeight(.semibold)
-                    }
+                    HydraMetricRow(
+                        label: summary.movement.replacingOccurrences(of: "_", with: " ").capitalized,
+                        value: "\(summary.count) rep\(summary.count == 1 ? "" : "s")"
+                    )
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 }
 
@@ -163,15 +152,6 @@ private extension AssessmentPersistenceState {
             return "checkmark.circle.fill"
         case .cachedOffline:
             return "icloud.slash.fill"
-        }
-    }
-
-    var tintColor: Color {
-        switch self {
-        case .uploaded:
-            return .teal
-        case .cachedOffline:
-            return .orange
         }
     }
 }

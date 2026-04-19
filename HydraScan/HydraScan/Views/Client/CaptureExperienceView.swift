@@ -19,6 +19,8 @@ struct CaptureExperienceView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    HydraBrandWordmark(size: 28)
+
                     switch screen {
                     case .intake:
                         IntakeView(user: user, service: service) { profile in
@@ -44,26 +46,39 @@ struct CaptureExperienceView: View {
                         completionView
                     }
                 }
-                .padding(24)
+                .padding(HydraTheme.Spacing.page)
             }
-            .navigationTitle("Capture")
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
         }
     }
 
     private var completionView: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Session Logged")
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
-            Text("Your intake, movement capture, and post-session feedback are all saved. Head back home to review your updated momentum.")
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 20) {
+            HydraPageHeader(
+                eyebrow: "Session Complete",
+                title: "Your latest motion session is saved.",
+                subtitle: "Intake, live capture, and post-session feedback are all now part of your recovery timeline."
+            )
+
+            HydraCard(role: .ivory) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("What happens next")
+                        .font(HydraTypography.section(28))
+                        .foregroundStyle(HydraTheme.Colors.ink)
+                    Text("Return home to review your updated recovery view or begin a new capture when you’re ready.")
+                        .font(HydraTypography.body(15))
+                        .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                }
+            }
 
             Button("Start Another Session") {
                 screen = .intake
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(HydraButtonStyle(kind: .primary))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 40)
+        .padding(.top, 20)
     }
 }
 

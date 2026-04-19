@@ -34,16 +34,34 @@ struct BodyMapCanvas: View {
                             onToggle(region)
                         } label: {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(selectedRegions.contains(region) ? Color.teal.opacity(0.26) : Color.clear)
+                                .fill(
+                                    selectedRegions.contains(region)
+                                        ? AnyShapeStyle(
+                                            LinearGradient(
+                                                colors: [
+                                                    HydraTheme.Colors.goldSoft.opacity(0.92),
+                                                    HydraTheme.Colors.gold.opacity(0.92),
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        : AnyShapeStyle(HydraTheme.Colors.surface.opacity(0.16))
+                                )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .stroke(selectedRegions.contains(region) ? Color.teal : Color.gray.opacity(0.16), lineWidth: selectedRegions.contains(region) ? 2 : 1)
+                                        .stroke(
+                                            selectedRegions.contains(region)
+                                                ? HydraTheme.Colors.goldOutline.opacity(0.65)
+                                                : HydraTheme.Colors.stroke,
+                                            lineWidth: selectedRegions.contains(region) ? 1.8 : 1
+                                        )
                                 )
                                 .overlay(alignment: .center) {
                                     Text(region.displayLabel)
-                                        .font(.caption2.weight(.semibold))
+                                        .font(HydraTypography.ui(11, weight: .semibold))
                                         .multilineTextAlignment(.center)
-                                        .foregroundStyle(selectedRegions.contains(region) ? Color.teal : Color.secondary)
+                                        .foregroundStyle(selectedRegions.contains(region) ? HydraTheme.Colors.ink : HydraTheme.Colors.secondaryText)
                                         .padding(4)
                                 }
                         }
@@ -66,35 +84,40 @@ struct BodyMapCanvas: View {
     private var silhouette: some View {
         ZStack {
             Circle()
-                .fill(Color.gray.opacity(0.12))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.08))
                 .frame(width: 82, height: 82)
                 .offset(y: -188)
 
             RoundedRectangle(cornerRadius: 38, style: .continuous)
-                .fill(Color.gray.opacity(0.1))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.07))
                 .frame(width: 140, height: 210)
                 .offset(y: -48)
 
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.gray.opacity(0.08))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.05))
                 .frame(width: 48, height: 150)
                 .offset(x: -108, y: -58)
 
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.gray.opacity(0.08))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.05))
                 .frame(width: 48, height: 150)
                 .offset(x: 108, y: -58)
 
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.gray.opacity(0.08))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.05))
                 .frame(width: 56, height: 220)
                 .offset(x: -38, y: 170)
 
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.gray.opacity(0.08))
+                .fill(HydraTheme.Colors.primaryText.opacity(0.05))
                 .frame(width: 56, height: 220)
                 .offset(x: 38, y: 170)
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
+                .padding(10)
+        )
     }
 }
 

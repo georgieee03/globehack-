@@ -6,67 +6,101 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("HydraScan")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Sign in to complete your intake, capture movement, and keep your recovery loop connected to your clinic.")
-                        .foregroundStyle(.secondary)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    HydraPageHeader(
+                        eyebrow: "Client Access",
+                        title: "Recovery intelligence, ready when you are.",
+                        subtitle: "Sign in to continue your intake, live movement scan, and clinic-connected recovery timeline."
+                    )
 
-                VStack(spacing: 16) {
-                    SignInWithAppleButton(.continue) { request in
-                        request.requestedScopes = [.fullName, .email]
-                    } onCompletion: { result in
-                        handleAppleSignIn(result)
-                    }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    HydraCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Continue with Apple")
+                                .font(HydraTypography.section(24))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Or use a magic link")
-                            .font(.headline)
+                            Text("Use the identity your clinic expects, then pick up where your last capture ended.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
-                        TextField("you@example.com", text: $viewModel.emailAddress)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
-                            )
-
-                        Button("Send Magic Link") {
-                            Task {
-                                await viewModel.sendMagicLink()
+                            SignInWithAppleButton(.continue) { request in
+                                request.requestedScopes = [.fullName, .email]
+                            } onCompletion: { result in
+                                handleAppleSignIn(result)
                             }
+                            .signInWithAppleButtonStyle(.white)
+                            .frame(height: 54)
+                            .clipShape(RoundedRectangle(cornerRadius: HydraTheme.Radius.button, style: .continuous))
                         }
-                        .buttonStyle(.bordered)
+                    }
+
+                    HydraCard(role: .panel) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Magic Link")
+                                .font(HydraTypography.section(24))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                            Text("Prefer email access? We’ll send a secure link to this device.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+                            HydraInputShell {
+                                TextField("you@example.com", text: $viewModel.emailAddress)
+                                    .keyboardType(.emailAddress)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .font(HydraTypography.body(16))
+                                    .foregroundStyle(HydraTheme.Colors.primaryText)
+                            }
+
+                            Button("Send Magic Link") {
+                                Task {
+                                    await viewModel.sendMagicLink()
+                                }
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .secondary))
+                        }
+                    }
+
+                    HydraCard(role: .ivory) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HydraEyebrow(text: "HydraScan System", icon: "waveform.path.ecg")
+                            Text("Every recovery session, check-in, and QuickPose capture stays tied to your clinic workflow.")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.ink)
+
+                            Text("The app opens into your private recovery timeline as soon as authentication completes.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                        }
+                    }
+
+                    if let infoMessage = viewModel.infoMessage {
+                        HydraStatusBanner(message: infoMessage, tone: .success, icon: "checkmark.circle.fill")
+                    }
+
+                    if let errorMessage = viewModel.errorMessage {
+                        HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
                     }
                 }
-
-                if let infoMessage = viewModel.infoMessage {
-                    StatusBanner(message: infoMessage, tint: .teal)
-                }
-
-                if let errorMessage = viewModel.errorMessage {
-                    StatusBanner(message: errorMessage, tint: .red)
-                }
-
-                Spacer()
+                .padding(HydraTheme.Spacing.page)
             }
-            .padding(24)
-            .navigationTitle("Sign In")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
             .overlay {
                 if viewModel.isLoading {
-                    ProgressView("Working...")
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(.systemBackground))
-                        )
+                    HydraCard {
+                        HStack(spacing: 14) {
+                            ProgressView()
+                                .tint(HydraTheme.Colors.gold)
+                            Text("Securing your HydraScan access…")
+                                .font(HydraTypography.body(15, weight: .medium))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+                        }
+                    }
+                    .padding(HydraTheme.Spacing.page)
                 }
             }
         }
@@ -97,23 +131,6 @@ struct LoginView: View {
                 )
             }
         }
-    }
-}
-
-private struct StatusBanner: View {
-    let message: String
-    let tint: Color
-
-    var body: some View {
-        Text(message)
-            .font(.subheadline)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
-            .foregroundStyle(tint)
     }
 }
 

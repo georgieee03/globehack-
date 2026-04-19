@@ -16,44 +16,52 @@ struct CheckInView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Daily Check-In")
-                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        Text("Take 30 seconds to mark how recovery feels today.")
-                            .foregroundStyle(.secondary)
+                    HydraPageHeader(
+                        eyebrow: "Daily Check-In",
+                        title: "Capture how recovery feels today.",
+                        subtitle: "A quick signal check keeps your score, session continuity, and practitioner context up to date."
+                    )
+
+                    HydraCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Overall Feeling")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+                            EmojiScalePicker(selectedValue: $overallFeeling)
+                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Overall Feeling")
-                            .font(.headline)
-                        EmojiScalePicker(selectedValue: $overallFeeling)
+                    HydraCard(role: .panel) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Target Regions")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+                            Text("Start with the regions from your latest session, then adjust if needed.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+                            FlowRegionPicker(selectedRegions: $selectedRegions, recommendedRegions: recommendedRegions)
+                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Target Regions")
-                            .font(.headline)
-                        Text("Start with the regions from your latest session, then adjust if needed.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        FlowRegionPicker(selectedRegions: $selectedRegions, recommendedRegions: recommendedRegions)
-                    }
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Activity Since Last Session")
-                            .font(.headline)
-                        TextEditor(text: $activitySinceLast)
-                            .frame(minHeight: 120)
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
-                            )
+                    HydraCard(role: .ivory) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Activity Since Last Session")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.ink)
+                            HydraInputShell(role: .ivory) {
+                                TextEditor(text: $activitySinceLast)
+                                    .frame(minHeight: 120)
+                                    .scrollContentBackground(.hidden)
+                                    .font(HydraTypography.body(16))
+                                    .foregroundStyle(HydraTheme.Colors.ink)
+                                    .background(Color.clear)
+                            }
+                        }
                     }
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
+                        HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
                     }
 
                     Button("Submit Check-In") {
@@ -61,12 +69,13 @@ struct CheckInView: View {
                             await submitCheckIn()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HydraButtonStyle(kind: .primary))
                     .disabled(isSaving)
                 }
-                .padding(24)
+                .padding(HydraTheme.Spacing.page)
             }
-            .navigationTitle("Check-In")
+            .toolbar(.hidden, for: .navigationBar)
+            .hydraShell()
             .task {
                 await loadRecommendedRegions()
             }
@@ -135,8 +144,7 @@ private struct FlowRegionPicker: View {
                         selectedRegions.insert(region)
                     }
                 }
-                .buttonStyle(.bordered)
-                .tint(selectedRegions.contains(region) ? .teal : (recommendedRegions.contains(region) ? .orange : .gray))
+                .buttonStyle(HydraChipStyle(selected: selectedRegions.contains(region), emphasized: recommendedRegions.contains(region)))
             }
         }
     }

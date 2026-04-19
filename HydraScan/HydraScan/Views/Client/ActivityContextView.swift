@@ -14,18 +14,21 @@ struct ActivityContextView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Add a little context about what your body has been doing lately.")
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(16))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
-            TextEditor(text: $viewModel.activityContext)
-                .frame(minHeight: 140)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
+            HydraInputShell {
+                TextEditor(text: $viewModel.activityContext)
+                    .frame(minHeight: 140)
+                    .scrollContentBackground(.hidden)
+                    .font(HydraTypography.body(16))
+                    .foregroundStyle(HydraTheme.Colors.primaryText)
+                    .background(Color.clear)
+            }
 
             Text("Quick ideas")
-                .font(.headline)
+                .font(HydraTypography.ui(15, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             FlowLayout(spacing: 10, lineSpacing: 10) {
                 ForEach(suggestions, id: \.self) { suggestion in
@@ -36,8 +39,7 @@ struct ActivityContextView: View {
                             viewModel.activityContext += ", \(suggestion.lowercased())"
                         }
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.teal)
+                    .buttonStyle(HydraChipStyle(selected: false, emphasized: true))
                 }
             }
         }

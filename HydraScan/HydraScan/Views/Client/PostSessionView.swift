@@ -12,12 +12,11 @@ struct PostSessionView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Post-Session Feedback")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("A quick reflection helps keep your Recovery Score and practitioner summary up to date.")
-                        .foregroundStyle(.secondary)
-                }
+                HydraSectionHeader(
+                    eyebrow: "Post-Session Feedback",
+                    title: "Close the loop on this session.",
+                    subtitle: "A short reflection keeps your recovery score and practitioner-facing outcome summary accurate."
+                )
 
                 sliderCard(title: "Stiffness After", value: $viewModel.stiffnessAfter)
                 sliderCard(title: "Soreness After", value: $viewModel.sorenessAfter)
@@ -35,19 +34,20 @@ struct PostSessionView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Notes")
-                        .font(.headline)
-                    TextEditor(text: $viewModel.clientNotes)
-                        .frame(minHeight: 120)
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
-                        )
+                        .font(HydraTypography.ui(15, weight: .semibold))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
+                    HydraInputShell {
+                        TextEditor(text: $viewModel.clientNotes)
+                            .frame(minHeight: 120)
+                            .scrollContentBackground(.hidden)
+                            .font(HydraTypography.body(16))
+                            .foregroundStyle(HydraTheme.Colors.primaryText)
+                            .background(Color.clear)
+                    }
                 }
 
                 if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
                 }
 
                 Button("Submit Feedback") {
@@ -57,7 +57,7 @@ struct PostSessionView: View {
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HydraButtonStyle(kind: .primary))
                 .disabled(viewModel.isSaving)
             }
             .padding(.vertical, 12)
@@ -65,29 +65,26 @@ struct PostSessionView: View {
     }
 
     private func sliderCard(title: String, value: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .panel) {
             HStack {
                 Text(title)
-                    .font(.headline)
+                    .font(HydraTypography.section(24))
+                    .foregroundStyle(HydraTheme.Colors.primaryText)
                 Spacer()
                 Text("\(Int(value.wrappedValue.rounded()))/10")
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.ui(15, weight: .semibold))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             }
 
             Slider(value: value, in: 0...10, step: 1)
-                .tint(.teal)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private func triStatePicker(title: String, selection: Binding<TriStateChoice>) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HydraCard(role: .panel) {
             Text(title)
-                .font(.headline)
+                .font(HydraTypography.ui(15, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             Picker(title, selection: selection) {
                 Text("Yes").tag(TriStateChoice.yes)

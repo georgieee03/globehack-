@@ -9,14 +9,17 @@ struct RecoveryScoreView: View {
                 RecoveryScoreGauge(score: recoveryScore.current)
 
                 VStack(alignment: .leading, spacing: 10) {
+                    HydraEyebrow(text: "Recovery Score", icon: "waveform.path.ecg")
+
                     Text(recoveryScore.deltaDescription)
-                        .font(.headline)
-                        .foregroundStyle(recoveryScore.deltaFromLastWeek >= 0 ? .green : .orange)
+                        .font(HydraTypography.section(26))
+                        .foregroundStyle(recoveryScore.deltaFromLastWeek >= 0 ? HydraTheme.Colors.success : HydraTheme.Colors.warning)
                     Text("Updated \(recoveryScore.updatedAt.shortDateLabel)")
-                        .foregroundStyle(.secondary)
+                        .font(HydraTypography.body(14, weight: .medium))
+                        .foregroundStyle(HydraTheme.Colors.secondaryText)
                     Text("A higher score suggests your recent check-ins and sessions are trending in a healthier direction.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(HydraTypography.body(15))
+                        .foregroundStyle(HydraTheme.Colors.secondaryText)
                 }
             }
 

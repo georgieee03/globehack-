@@ -6,16 +6,21 @@ struct BodyMapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Select the regions that need the most support right now.")
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(16))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
-            BodyMapCanvas(selectedRegions: viewModel.selectedRegions) { region in
-                viewModel.toggle(region: region)
+            HydraCard(role: .panel, padding: 16) {
+                BodyMapCanvas(selectedRegions: viewModel.selectedRegions) { region in
+                    viewModel.toggle(region: region)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
 
-            Text("\(viewModel.selectedRegions.count) regions selected")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+            HydraMetricRow(
+                label: "Regions Selected",
+                value: "\(viewModel.selectedRegions.count)",
+                accent: HydraTheme.Colors.goldSoft
+            )
         }
     }
 }

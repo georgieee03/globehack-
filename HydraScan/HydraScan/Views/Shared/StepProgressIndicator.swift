@@ -8,19 +8,28 @@ struct StepProgressIndicator: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(title)
-                    .font(.headline)
+                HydraEyebrow(text: title)
                 Spacer()
                 Text("\(currentStep)/\(totalSteps)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.ui(14, weight: .semibold))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             }
 
             HStack(spacing: 8) {
                 ForEach(0..<totalSteps, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(index < currentStep ? Color.teal : Color.teal.opacity(0.16))
-                        .frame(height: 8)
+                        .fill(
+                            index < currentStep
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [HydraTheme.Colors.goldSoft, HydraTheme.Colors.gold],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                : AnyShapeStyle(HydraTheme.Colors.stroke)
+                        )
+                        .frame(height: 10)
                 }
             }
         }

@@ -12,6 +12,12 @@ struct QuickPoseVerificationView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                HydraPageHeader(
+                    eyebrow: "Verification Lab",
+                    title: "Validate the live QuickPose pipeline.",
+                    subtitle: "Inspect the real-time overlay, fixture processing path, saved artifacts, and device-level metrics in one branded developer surface."
+                )
+
                 previewSection
                 controlSection
                 liveStatsSection
@@ -26,11 +32,10 @@ struct QuickPoseVerificationView: View {
                     latestFrameSection(artifact: latestFrameArtifact)
                 }
             }
-            .padding(24)
+            .padding(HydraTheme.Spacing.page)
         }
-        .navigationTitle("Verification Lab")
-        .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemGroupedBackground))
+        .toolbar(.hidden, for: .navigationBar)
+        .hydraShell()
         .onAppear {
             viewModel.startLiveVerification()
         }
@@ -40,9 +45,10 @@ struct QuickPoseVerificationView: View {
     }
 
     private var previewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard {
             Text(viewModel.runtimeEnvironment.liveSectionTitle)
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             if viewModel.usesLiveCamera {
                 ZStack {
@@ -55,8 +61,8 @@ struct QuickPoseVerificationView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 320)
-                .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(HydraTheme.Colors.shell)
+                .clipShape(RoundedRectangle(cornerRadius: HydraTheme.Radius.media, style: .continuous))
             } else if let clipURL = viewModel.clipURL, viewModel.usesBundledClipPreview {
                 ZStack {
                     QuickPoseSimulatedCameraView(
@@ -69,190 +75,172 @@ struct QuickPoseVerificationView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 320)
-                .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(HydraTheme.Colors.shell)
+                .clipShape(RoundedRectangle(cornerRadius: HydraTheme.Radius.media, style: .continuous))
             } else {
-                Text(viewModel.runtimeEnvironment.supportNote)
-                    .foregroundStyle(.orange)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color(.secondarySystemBackground))
-                    )
+                HydraStatusBanner(message: viewModel.runtimeEnvironment.supportNote, tone: .warning, icon: "camera.fill")
             }
 
             Text(viewModel.runtimeEnvironment.supportNote)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(13, weight: .medium))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
             Text(viewModel.liveStatusText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(15))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
         }
     }
 
     private var controlSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .panel) {
             Text("Fixture Test")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             Text("Bundled clip: \(viewModel.clip.displayName)")
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(15))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
             Text(viewModel.hasConfiguredSDKKey ? "QuickPose SDK key detected in build settings." : "QuickPose SDK key is not configured. QuickPose may return validation errors.")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(viewModel.hasConfiguredSDKKey ? .green : .orange)
+                .font(HydraTypography.body(14, weight: .semibold))
+                .foregroundStyle(viewModel.hasConfiguredSDKKey ? HydraTheme.Colors.success : HydraTheme.Colors.warning)
 
             HStack {
                 Button("Run Fixture Verification") {
                     viewModel.runFixtureVerification()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HydraButtonStyle(kind: .primary))
                 .disabled(viewModel.isProcessingFixture || !viewModel.supportsQuickPoseRuntime)
 
                 Button("Save Live Artifact") {
                     viewModel.saveLiveArtifactSnapshot()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HydraButtonStyle(kind: .secondary))
                 .disabled(!viewModel.supportsQuickPoseRuntime)
             }
 
             if viewModel.isProcessingFixture {
                 ProgressView(value: viewModel.fixtureProgress)
                 Text("Processing prerecorded clip through QuickPose post-processing.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.body(13))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             }
 
-            statRow(label: "SDK version", value: viewModel.sdkVersion)
-            statRow(label: "Bundle id", value: viewModel.bundleIdentifier)
+            HydraMetricRow(label: "SDK version", value: viewModel.sdkVersion)
+            HydraMetricRow(label: "Bundle id", value: viewModel.bundleIdentifier)
 
             if let fixtureErrorMessage = viewModel.fixtureErrorMessage {
-                Text(fixtureErrorMessage)
-                    .foregroundStyle(.red)
-                    .font(.subheadline)
+                HydraStatusBanner(message: fixtureErrorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private var liveStatsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .panel) {
             Text("Live Metrics")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             Group {
-                statRow(label: "Frames seen", value: "\(viewModel.liveFrameCount)")
-                statRow(label: "Estimated reps", value: "\(viewModel.liveRepCount)")
-                statRow(label: "Current asymmetry", value: viewModel.currentAsymmetryText)
+                HydraMetricRow(label: "Frames seen", value: "\(viewModel.liveFrameCount)")
+                HydraMetricRow(label: "Estimated reps", value: "\(viewModel.liveRepCount)")
+                HydraMetricRow(label: "Current asymmetry", value: viewModel.currentAsymmetryText)
             }
 
-            Divider()
+            Rectangle()
+                .fill(HydraTheme.Colors.stroke)
+                .frame(height: 1)
 
             ForEach(viewModel.currentMetrics) { metric in
-                statRow(label: metric.name, value: metric.stringValue)
+                HydraMetricRow(label: metric.name, value: metric.stringValue)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private var artifactSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .ivory) {
             Text("Debug Artifact Test")
-                .font(.headline)
+                .font(HydraTypography.section(28))
+                .foregroundStyle(HydraTheme.Colors.ink)
 
             if let liveArtifactURL = viewModel.liveArtifactURL {
                 Text("Latest live JSON: \(liveArtifactURL.path)")
-                    .font(.footnote)
+                    .font(HydraTypography.body(13, weight: .medium))
+                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
                     .textSelection(.enabled)
             }
 
             if let fixtureArtifactURL = viewModel.fixtureArtifactURL {
                 Text("Latest fixture JSON: \(fixtureArtifactURL.path)")
-                    .font(.footnote)
+                    .font(HydraTypography.body(13, weight: .medium))
+                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
                     .textSelection(.enabled)
             }
 
             if let fixtureOutputMovieURL = viewModel.fixtureOutputMovieURL {
                 Text("Latest processed movie: \(fixtureOutputMovieURL.path)")
-                    .font(.footnote)
+                    .font(HydraTypography.body(13, weight: .medium))
+                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
                     .textSelection(.enabled)
             }
 
             if viewModel.liveArtifactURL == nil, viewModel.fixtureArtifactURL == nil {
                 Text("No artifacts saved yet.")
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.body(15))
+                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private var diagnosticsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard {
             Text("Diagnostics")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             if viewModel.diagnosticMessages.isEmpty {
                 Text("No diagnostic events yet.")
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.body(15))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             } else {
                 ForEach(Array(viewModel.diagnosticMessages.enumerated()), id: \.offset) { _, message in
                     Text(message)
-                        .font(.caption.monospaced())
+                        .font(HydraTypography.mono(12))
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(HydraTheme.Colors.secondaryText)
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private func fixtureResultsSection(summary: QuickPoseVerificationSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard {
             Text("Fixture Assertions")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             ForEach(summary.assertions) { assertion in
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: assertion.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(assertion.passed ? .green : .red)
+                        .foregroundStyle(assertion.passed ? HydraTheme.Colors.success : HydraTheme.Colors.error)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(assertion.name)
-                            .font(.subheadline.weight(.semibold))
+                            .font(HydraTypography.ui(15, weight: .semibold))
+                            .foregroundStyle(HydraTheme.Colors.primaryText)
                         Text(assertion.details)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(HydraTypography.body(13))
+                            .foregroundStyle(HydraTheme.Colors.secondaryText)
                     }
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private func latestFrameSection(artifact: QuickPoseVerificationFrameArtifact) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HydraCard(role: .panel) {
             Text("Latest Frame Snapshot")
-                .font(.headline)
+                .font(HydraTypography.section(26))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
 
             ViewThatFits {
                 HStack(alignment: .top, spacing: 16) {
@@ -266,25 +254,21 @@ struct QuickPoseVerificationView: View {
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 
     private func rawLandmarkColumn(artifact: QuickPoseVerificationFrameArtifact) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Raw Landmarks")
-                .font(.subheadline.weight(.semibold))
+                .font(HydraTypography.ui(15, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
             Text("Body points: \(artifact.bodyLandmarks.count)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(13))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
             ForEach(Array(artifact.bodyLandmarks.prefix(5).enumerated()), id: \.offset) { index, point in
                 Text("\(index): x \(String(format: "%.3f", point.x)), y \(String(format: "%.3f", point.y)), z \(String(format: "%.3f", point.z))")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                    .font(HydraTypography.mono(12))
+                    .foregroundStyle(HydraTheme.Colors.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -293,27 +277,17 @@ struct QuickPoseVerificationView: View {
     private func metricColumn(artifact: QuickPoseVerificationFrameArtifact) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Computed Metrics")
-                .font(.subheadline.weight(.semibold))
+                .font(HydraTypography.ui(15, weight: .semibold))
+                .foregroundStyle(HydraTheme.Colors.primaryText)
             Text("Status: \(artifact.status)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(HydraTypography.body(13))
+                .foregroundStyle(HydraTheme.Colors.secondaryText)
 
             ForEach(artifact.metrics) { metric in
-                statRow(label: metric.name, value: metric.stringValue)
+                HydraMetricRow(label: metric.name, value: metric.stringValue)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func statRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-        }
-        .font(.subheadline)
     }
 }
 
