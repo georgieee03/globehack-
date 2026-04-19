@@ -1,0 +1,55 @@
+import type { RecoveryGoal } from "../types/client-profile.js";
+import type { ModalityMix } from "../types/recovery-intelligence.js";
+
+export const MODALITY_MIX_MAP: Record<RecoveryGoal, ModalityMix> = {
+  mobility: {
+    edgeCycleDuration: 9,
+    intensityProfile: 'moderate',
+    pwmHot: [80, 100, 120],
+    pwmCold: [150, 180, 200],
+    vibMin: 25,
+    vibMax: 180,
+    led: 1,
+    rationale: 'Moderate thermal contrast with vibro-acoustic stimulation supports joint mobility and tissue flexibility.',
+  },
+  warm_up: {
+    edgeCycleDuration: 7,
+    intensityProfile: 'gentle',
+    pwmHot: [60, 80, 100],
+    pwmCold: [120, 140, 160],
+    vibMin: 15,
+    vibMax: 140,
+    led: 1,
+    rationale: 'Gentle warming with light vibration prepares tissues for activity without overstimulation.',
+  },
+  recovery: {
+    edgeCycleDuration: 9,
+    intensityProfile: 'moderate',
+    pwmHot: [90, 110, 130],
+    pwmCold: [160, 190, 220],
+    vibMin: 20,
+    vibMax: 160,
+    led: 1,
+    rationale: 'Moderate thermal contrast with photobiomodulation supports post-activity recovery and circulation.',
+  },
+  relaxation: {
+    edgeCycleDuration: 9,
+    intensityProfile: 'gentle',
+    pwmHot: [50, 70, 90],
+    pwmCold: [130, 150, 170],
+    vibMin: 10,
+    vibMax: 120,
+    led: 1,
+    rationale: 'Gentle warming with low vibration promotes deep relaxation and stress reduction.',
+  },
+  performance_prep: {
+    edgeCycleDuration: 7,
+    intensityProfile: 'intense',
+    pwmHot: [100, 120, 140],
+    pwmCold: [170, 200, 230],
+    vibMin: 30,
+    vibMax: 200,
+    led: 1,
+    rationale: 'Intense thermal contrast with strong vibro-acoustic stimulation activates tissues for peak performance.',
+  },
+};

@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/clients/[clientId]/page": "app/clients/[clientId]/page.js",
+  "/clients/page": "app/clients/page.js",
+  "/page": "app/page.js",
+  "/clients/[clientId]/session/page": "app/clients/[clientId]/session/page.js",
+  "/clients/[clientId]/protocol/page": "app/clients/[clientId]/protocol/page.js",
+  "/clients/[clientId]/post-session/page": "app/clients/[clientId]/post-session/page.js"
+}

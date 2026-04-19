@@ -8,8 +8,16 @@ export * from "./types/daily-checkin.js";
 export * from "./types/recovery-graph.js";
 export * from "./types/session-config.js";
 export * from "./types/safe-envelope.js";
+export * from "./types/recovery-intelligence.js";
+export * from "./types/recovery-map.js";
+export * from "./types/recovery-score.js";
+export * from "./types/llm-explanation.js";
 
 export * from "./constants/body-regions.js";
+export * from "./constants/pad-placement-map.js";
+export * from "./constants/modality-mix-map.js";
+export * from "./constants/adjacent-regions.js";
+export * from "./constants/bilateral-pairs.js";
 export * from "./constants/safe-ranges.js";
 export * from "./constants/language-guardrails.js";
 
