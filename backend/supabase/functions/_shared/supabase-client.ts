@@ -66,19 +66,25 @@ export function extractBearerToken(request: Request): string {
   const header = request.headers.get("Authorization");
 
   if (!header) {
-    throw new HttpError(401, "Missing Authorization header");
+    throw new HttpError(401, "Missing Authorization header", {
+      reason: "missing_authorization_header",
+    });
   }
 
   const [scheme, ...tokenParts] = header.trim().split(/\s+/);
 
   if (scheme?.toLowerCase() !== "bearer" || tokenParts.length === 0) {
-    throw new HttpError(401, "Authorization header must be a Bearer token");
+    throw new HttpError(401, "Authorization header must be a Bearer token", {
+      reason: "empty_bearer_token",
+    });
   }
 
   const token = tokenParts.join(" ").trim();
 
   if (!token) {
-    throw new HttpError(401, "Bearer token is empty");
+    throw new HttpError(401, "Bearer token is empty", {
+      reason: "empty_bearer_token",
+    });
   }
 
   return token;
@@ -93,6 +99,7 @@ export async function requireAuthenticatedUser(
 
   if (error || !data.user) {
     throw new HttpError(401, "Invalid or expired Supabase session", {
+      reason: "invalid_or_expired_session",
       detail: error?.message,
     });
   }

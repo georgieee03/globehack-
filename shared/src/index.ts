@@ -13,6 +13,7 @@ export * from "./types/recovery-intelligence.js";
 export * from "./types/recovery-map.js";
 export * from "./types/recovery-score.js";
 export * from "./types/llm-explanation.js";
+export * from "./types/recovery-plan.js";
 
 export * from "./constants/body-regions.js";
 export * from "./constants/pad-placement-map.js";

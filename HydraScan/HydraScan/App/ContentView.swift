@@ -100,6 +100,8 @@ struct ContentView: View {
 
 private struct HomeTabView: View {
     @StateObject private var viewModel: HomeViewModel
+    let user: HydraUser
+    let service: SupabaseServiceProtocol
     let refreshToken: UUID
     let onStartCapture: () -> Void
     let onOpenCheckIn: () -> Void
@@ -112,6 +114,8 @@ private struct HomeTabView: View {
         onOpenCheckIn: @escaping () -> Void
     ) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(user: user, service: service))
+        self.user = user
+        self.service = service
         self.refreshToken = refreshToken
         self.onStartCapture = onStartCapture
         self.onOpenCheckIn = onOpenCheckIn
@@ -157,6 +161,47 @@ private struct HomeTabView: View {
                                     .foregroundStyle(HydraTheme.Colors.secondaryText)
                             }
                         }
+                    }
+
+                    if let activePlan = viewModel.activeRecoveryPlan {
+                        NavigationLink {
+                            RecoveryPlanView(user: user, service: service, initialPlan: activePlan)
+                        } label: {
+                            HydraCard(role: .ivory) {
+                                VStack(alignment: .leading, spacing: 14) {
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Active Recovery Plan")
+                                                .font(HydraTypography.section(28))
+                                                .foregroundStyle(HydraTheme.Colors.ink)
+
+                                            Text(activePlan.summary)
+                                                .font(HydraTypography.body(15))
+                                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                                        }
+
+                                        Spacer()
+
+                                        HydraBrandEmblem(size: 36, reversed: true)
+                                    }
+
+                                    HydraMetricRow(
+                                        label: "Completed This Week",
+                                        value: "\(activePlan.progress.completedThisWeek)/\(activePlan.progress.assignedThisWeek)",
+                                        accent: HydraTheme.Colors.ink,
+                                        labelWidth: 140
+                                    )
+
+                                    HydraMetricRow(
+                                        label: "Next Item",
+                                        value: activePlan.nextSuggestedItem?.video.title ?? "Review your plan",
+                                        accent: HydraTheme.Colors.ink,
+                                        labelWidth: 140
+                                    )
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     HydraCard(role: .panel) {
@@ -231,6 +276,25 @@ private struct ProfileView: View {
         viewModel.sessionContext?.clinic?.name ?? "Clinic not assigned"
     }
 
+    private var sessionModeLabel: String {
+        switch viewModel.sessionMode {
+        case .demo:
+            return "Demo QA"
+        case .real:
+            return "Real Account"
+        case nil:
+            return "Signed Out"
+        }
+    }
+
+    private var diagnosticsTimestamp: String {
+        guard let date = viewModel.authDiagnostics.lastSuccessfulFunctionAt else {
+            return "No authenticated function calls yet"
+        }
+
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -257,12 +321,21 @@ private struct ProfileView: View {
                             }
 
                             HydraMetricRow(label: "Role", value: roleLabel)
+                            HydraMetricRow(label: "Session Mode", value: sessionModeLabel)
                             HydraMetricRow(label: "Clinic", value: clinicName)
                             HydraMetricRow(
                                 label: "Client Profile",
                                 value: viewModel.sessionContext?.clientProfileID?.uuidString.prefix(8).uppercased() ?? "Pending"
                             )
                         }
+                    }
+
+                    if viewModel.sessionMode == .demo {
+                        HydraStatusBanner(
+                            message: "This device is using the seeded demo QA client. Real accounts continue to use Apple Sign-In or Magic Link.",
+                            tone: .warning,
+                            icon: "person.crop.circle.badge.exclamationmark"
+                        )
                     }
 
                     HydraCard(role: .ivory) {
@@ -303,6 +376,43 @@ private struct ProfileView: View {
                         }
                     }
 
+#if DEBUG
+                    HydraCard(role: .panel) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Auth Diagnostics")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                            Text("Use this debug snapshot to verify that device auth state and authenticated Edge Function access are actually in sync.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+                            HydraMetricRow(label: "Auth User", value: viewModel.authDiagnostics.authUserID?.uuidString.prefix(8).uppercased() ?? "None")
+                            HydraMetricRow(label: "Email", value: viewModel.authDiagnostics.email ?? "None")
+                            HydraMetricRow(
+                                label: "Providers",
+                                value: viewModel.authDiagnostics.providers.isEmpty
+                                    ? "None"
+                                    : viewModel.authDiagnostics.providers.joined(separator: ", ")
+                            )
+                            HydraMetricRow(label: "Session Exists", value: viewModel.authDiagnostics.sessionExists ? "Yes" : "No")
+                            HydraMetricRow(label: "Access Token", value: viewModel.authDiagnostics.accessTokenPresent ? "Present" : "Missing")
+                            HydraMetricRow(
+                                label: "Last Auth Function",
+                                value: viewModel.authDiagnostics.lastSuccessfulFunctionName ?? "Not yet"
+                            )
+                            HydraMetricRow(label: "Last Success", value: diagnosticsTimestamp)
+
+                            Button("Refresh Diagnostics") {
+                                Task {
+                                    await viewModel.refreshDiagnostics()
+                                }
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .secondary))
+                        }
+                    }
+#endif
+
                     HydraCard(role: .ivory) {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("Account Controls")
@@ -326,6 +436,9 @@ private struct ProfileView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .hydraShell()
+            .task {
+                await viewModel.refreshDiagnostics()
+            }
         }
     }
 }

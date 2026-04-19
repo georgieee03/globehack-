@@ -7,12 +7,25 @@ import Supabase
 @MainActor
 protocol SupabaseServiceProtocol {
     func currentSessionContext() async -> HydraSessionContext?
+    func fetchAuthDiagnostics() async -> HydraAuthDiagnostics
     func ensureClientProfile(for user: HydraUser) async throws -> ClientProfile
     func fetchClientProfile(userID: UUID) async throws -> ClientProfile
     func updateClientProfile(_ profile: ClientProfile) async throws -> ClientProfile
     func createAssessment(_ assessment: Assessment) async throws -> Assessment
     func fetchAssessments(clientID: UUID) async throws -> [Assessment]
     func fetchLatestAssessment(clientID: UUID) async throws -> Assessment?
+    func fetchActiveRecoveryPlan(clientID: UUID) async throws -> RecoveryPlan?
+    func fetchRecoveryPlanHistory(clientID: UUID) async throws -> [RecoveryPlanHistoryEntry]
+    func refreshRecoveryPlanIfNeeded(clientID: UUID, assessmentID: UUID?, forceRefresh: Bool) async throws -> RecoveryPlanRefreshResult
+    func logRecoveryPlanCompletion(
+        clientID: UUID,
+        planItemID: UUID,
+        status: CompletionStatus,
+        toleranceRating: Int?,
+        difficultyRating: Int?,
+        symptomResponse: SymptomResponse?,
+        notes: String?
+    ) async throws -> RecoveryPlan
     func fetchSessions(clientID: UUID, limit: Int) async throws -> [HydraSession]
     func fetchLatestSession(clientID: UUID, statuses: [HydraSessionStatus]?) async throws -> HydraSession?
     func fetchSessionAwareness(clientID: UUID) async throws -> HydraSessionAwareness
@@ -33,6 +46,8 @@ enum SupabaseServiceError: LocalizedError {
     case missingSession
     case incompleteOnboarding
     case missingCallbackConfiguration
+    case sessionExpired
+    case missingAccessToken
     case unavailable(String)
 
     var errorDescription: String? {
@@ -47,6 +62,10 @@ enum SupabaseServiceError: LocalizedError {
             return "Your clinic access is still being provisioned. Please try again in a moment."
         case .missingCallbackConfiguration:
             return "This build is missing an app callback URL for email sign-in."
+        case .sessionExpired:
+            return "Your session expired. Sign in again to continue."
+        case .missingAccessToken:
+            return "HydraScan could not find a valid access token for this session. Sign in again to continue."
         case let .unavailable(message):
             return message
         }
@@ -68,6 +87,28 @@ final class HydraSessionStore {
     }
 }
 
+@MainActor
+final class HydraAuthDiagnosticsStore {
+    static let shared = HydraAuthDiagnosticsStore()
+
+    private var lastSuccessfulFunctionName: String?
+    private var lastSuccessfulFunctionAt: Date?
+
+    func snapshot() -> (name: String?, date: Date?) {
+        (lastSuccessfulFunctionName, lastSuccessfulFunctionAt)
+    }
+
+    func recordSuccessfulInvoke(functionName: String) {
+        lastSuccessfulFunctionName = functionName
+        lastSuccessfulFunctionAt = Date()
+    }
+
+    func reset() {
+        lastSuccessfulFunctionName = nil
+        lastSuccessfulFunctionAt = nil
+    }
+}
+
 enum HydraRuntime {
     static var isPreview: Bool {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
@@ -82,24 +123,16 @@ enum HydraRuntime {
         return rawValue == "1" || rawValue == "yes" || rawValue == "true"
     }
 
-    static var qaAutologinCredentials: (email: String, password: String)? {
+    static var isDemoQAButtonEnabled: Bool {
         #if DEBUG
-        let environment = ProcessInfo.processInfo.environment
-        if environment["HYDRASCAN_SIMULATOR_AUTOLOGIN"] == "1" {
-            guard
-                let email = environment["HYDRASCAN_QA_EMAIL"]?.nilIfBlank,
-                let password = environment["HYDRASCAN_QA_PASSWORD"]?.nilIfBlank
-            else {
-                return nil
-            }
+        infoBool(forKey: "HYDRASCAN_ENABLE_DEMO_QA_BUTTON") && demoQACredentials != nil
+        #else
+        false
+        #endif
+    }
 
-            return (email, password)
-        }
-
-        guard infoBool(forKey: "HYDRASCAN_DEBUG_AUTOLOGIN") else {
-            return nil
-        }
-
+    static var demoQACredentials: (email: String, password: String)? {
+        #if DEBUG
         guard
             let email = infoString(forKey: "DEV_QA_EMAIL"),
             let password = infoString(forKey: "DEV_QA_PASSWORD")
@@ -111,6 +144,27 @@ enum HydraRuntime {
         #else
         return nil
         #endif
+    }
+
+    static func sessionMode(for authUser: HydraAuthUser?) -> HydraSessionMode? {
+        guard let authUser else { return nil }
+
+        if isDemoQAEmail(authUser.email) {
+            return .demo
+        }
+
+        return .real
+    }
+
+    static func isDemoQAEmail(_ email: String?) -> Bool {
+        guard
+            let email = email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            let configuredEmail = demoQACredentials?.email.lowercased()
+        else {
+            return false
+        }
+
+        return email == configuredEmail
     }
 
     static var authCallbackURL: URL? {
@@ -140,6 +194,7 @@ final class MockSupabaseService: SupabaseServiceProtocol {
     private var outcomesByClientID: [UUID: [Outcome]] = [:]
     private var checkinsByClientID: [UUID: [DailyCheckin]] = [:]
     private var sessionsByClientID: [UUID: [HydraSession]] = [:]
+    private var recoveryPlansByClientID: [UUID: [RecoveryPlan]] = [:]
 
     init(useLiveServices: Bool? = nil) {
         if useLiveServices ?? HydraRuntime.shouldUseLiveServices {
@@ -155,6 +210,25 @@ final class MockSupabaseService: SupabaseServiceProtocol {
         }
 
         return await HydraSessionStore.shared.currentContext()
+    }
+
+    func fetchAuthDiagnostics() async -> HydraAuthDiagnostics {
+        if let liveService {
+            return await liveService.fetchAuthDiagnostics()
+        }
+
+        let context = await HydraSessionStore.shared.currentContext()
+        let lastInvoke = await HydraAuthDiagnosticsStore.shared.snapshot()
+        return HydraAuthDiagnostics(
+            authUserID: context?.authUser.id,
+            email: context?.authUser.email,
+            providers: context?.authUser.providers ?? [],
+            sessionExists: context != nil,
+            accessTokenPresent: context != nil,
+            sessionMode: HydraRuntime.sessionMode(for: context?.authUser),
+            lastSuccessfulFunctionName: lastInvoke.name,
+            lastSuccessfulFunctionAt: lastInvoke.date
+        )
     }
 
     func ensureClientProfile(for user: HydraUser) async throws -> ClientProfile {
@@ -256,6 +330,132 @@ final class MockSupabaseService: SupabaseServiceProtocol {
         }
 
         return assessmentsByClientID[clientID]?.first
+    }
+
+    func fetchActiveRecoveryPlan(clientID: UUID) async throws -> RecoveryPlan? {
+        if let liveService {
+            return try await liveService.fetchActiveRecoveryPlan(clientID: clientID)
+        }
+
+        let active = recoveryPlansByClientID[clientID]?.first(where: {
+            $0.status == .active || $0.status == .pausedForSafety
+        })
+
+        if let active {
+            return active
+        }
+
+        return try await synthesizeRecoveryPlanIfPossible(clientID: clientID, assessmentID: nil, forceRefresh: false).plan
+    }
+
+    func fetchRecoveryPlanHistory(clientID: UUID) async throws -> [RecoveryPlanHistoryEntry] {
+        if let liveService {
+            return try await liveService.fetchRecoveryPlanHistory(clientID: clientID)
+        }
+
+        return recoveryPlansByClientID[clientID, default: []]
+            .sorted { $0.createdAt > $1.createdAt }
+            .map {
+                RecoveryPlanHistoryEntry(
+                    id: $0.id,
+                    status: $0.status,
+                    refreshReason: $0.refreshReason,
+                    sourceAssessmentID: $0.sourceAssessmentID,
+                    summary: $0.summary,
+                    createdAt: $0.createdAt,
+                    updatedAt: $0.updatedAt,
+                    supersededAt: nil,
+                    completionRate: $0.progress.completionRate,
+                    itemCount: $0.items.count
+                )
+            }
+    }
+
+    func refreshRecoveryPlanIfNeeded(clientID: UUID, assessmentID: UUID?, forceRefresh: Bool) async throws -> RecoveryPlanRefreshResult {
+        if let liveService {
+            return try await liveService.refreshRecoveryPlanIfNeeded(clientID: clientID, assessmentID: assessmentID, forceRefresh: forceRefresh)
+        }
+
+        return try await synthesizeRecoveryPlanIfPossible(clientID: clientID, assessmentID: assessmentID, forceRefresh: forceRefresh)
+    }
+
+    func logRecoveryPlanCompletion(
+        clientID: UUID,
+        planItemID: UUID,
+        status: CompletionStatus,
+        toleranceRating: Int?,
+        difficultyRating: Int?,
+        symptomResponse: SymptomResponse?,
+        notes: String?
+    ) async throws -> RecoveryPlan {
+        if let liveService {
+            return try await liveService.logRecoveryPlanCompletion(
+                clientID: clientID,
+                planItemID: planItemID,
+                status: status,
+                toleranceRating: toleranceRating,
+                difficultyRating: difficultyRating,
+                symptomResponse: symptomResponse,
+                notes: notes
+            )
+        }
+
+        guard var plans = recoveryPlansByClientID[clientID], let planIndex = plans.firstIndex(where: { plan in
+            plan.items.contains(where: { $0.id == planItemID })
+        }) else {
+            throw SupabaseServiceError.unavailable("No recovery plan is available for this client yet.")
+        }
+
+        var plan = plans[planIndex]
+        let now = Date()
+        let log = RecoveryPlanCompletionLog(
+            id: UUID(),
+            planID: plan.id,
+            planItemID: planItemID,
+            status: status,
+            toleranceRating: toleranceRating,
+            difficultyRating: difficultyRating,
+            symptomResponse: symptomResponse,
+            notes: notes?.nilIfBlank,
+            startedAt: status == .started ? now : nil,
+            completedAt: status == .completed ? now : nil,
+            createdAt: now,
+            updatedAt: now
+        )
+
+        var logs = plan.recentCompletionLogs
+        logs.insert(log, at: 0)
+
+        let shouldPauseForSafety = status == .stopped || (symptomResponse == .worse && containsSafetyStopLanguage(notes))
+        let pausedAt = shouldPauseForSafety ? now : plan.pausedForSafetyAt
+        let pauseReason = shouldPauseForSafety
+            ? "This plan is paused for safety based on your most recent exercise log. Contact your clinic before continuing."
+            : plan.safetyPauseReason
+
+        let updatedPlan = RecoveryPlan(
+            id: plan.id,
+            clientID: plan.clientID,
+            clinicID: plan.clinicID,
+            status: shouldPauseForSafety ? .pausedForSafety : plan.status,
+            refreshReason: plan.refreshReason,
+            sourceAssessmentID: plan.sourceAssessmentID,
+            summary: plan.summary,
+            activityContext: plan.activityContext,
+            primaryRegions: plan.primaryRegions,
+            recoverySignals: plan.recoverySignals,
+            goals: plan.goals,
+            safetyPauseReason: pauseReason,
+            pausedForSafetyAt: pausedAt,
+            createdAt: plan.createdAt,
+            updatedAt: now,
+            items: plan.items,
+            recentCompletionLogs: logs,
+            progress: buildMockProgressSummary(for: plan.items, logs: logs, isPaused: shouldPauseForSafety || plan.isPausedForSafety)
+        )
+
+        plans[planIndex] = updatedPlan
+        recoveryPlansByClientID[clientID] = plans
+        return updatedPlan
     }
 
     func fetchSessions(clientID: UUID, limit: Int) async throws -> [HydraSession] {
@@ -443,6 +643,7 @@ final class MockSupabaseService: SupabaseServiceProtocol {
         }
 
         await HydraSessionStore.shared.update(nil)
+        await HydraAuthDiagnosticsStore.shared.reset()
     }
 
     private func buildTrend(from checkins: [DailyCheckin]) -> [RecoveryScoreTrendPoint] {
@@ -470,6 +671,231 @@ final class MockSupabaseService: SupabaseServiceProtocol {
                 value: feelingScore
             )
         }
+    }
+
+    private func synthesizeRecoveryPlanIfPossible(
+        clientID: UUID,
+        assessmentID: UUID?,
+        forceRefresh: Bool
+    ) async throws -> RecoveryPlanRefreshResult {
+        if !forceRefresh, let existing = recoveryPlansByClientID[clientID]?.first(where: {
+            $0.status == .active || $0.status == .pausedForSafety
+        }) {
+            return RecoveryPlanRefreshResult(refreshed: false, reason: .noChange, plan: existing)
+        }
+
+        let profile = try await fetchClientProfile(userID: clientID)
+        let assessment = try await fetchLatestAssessment(clientID: clientID)
+        let sourceAssessmentID = assessmentID ?? assessment?.id
+        let regions = profile.primaryRegions.isEmpty
+            ? (assessment?.bodyZones.isEmpty == false ? assessment!.bodyZones : [.lowerBack])
+            : profile.primaryRegions
+        let orderedRegions = Array(regions.prefix(5))
+        let goal = profile.goals.first ?? assessment?.recoveryGoal ?? .recovery
+        let signals = profile.recoverySignals.isEmpty
+            ? orderedRegions.map {
+                RecoverySignal(region: $0, type: .stiffness, severity: 4, trigger: "general", notes: nil)
+            }
+            : profile.recoverySignals
+
+        guard !orderedRegions.isEmpty else {
+            return RecoveryPlanRefreshResult(refreshed: false, reason: .noPlanAvailable, plan: nil)
+        }
+
+        let planID = UUID()
+        let items = orderedRegions.enumerated().map { index, region in
+            let cadence: PlanCadence = {
+                let trigger = signals.first(where: { $0.region == region })?.trigger ?? "general"
+                switch trigger {
+                case ActivityTrigger.morning.rawValue:
+                    return .morning
+                case ActivityTrigger.evening.rawValue:
+                    return .evening
+                case ActivityTrigger.afterRunning.rawValue, ActivityTrigger.afterLifting.rawValue, ActivityTrigger.postTraining.rawValue:
+                    return .postActivity
+                default:
+                    return .daily
+                }
+            }()
+
+            let symptom = exerciseSymptom(from: signals.first(where: { $0.region == region })?.type ?? .stiffness)
+            let video = ExerciseVideo(
+                id: "mock-\(region.rawValue)-\(index + 1)",
+                canonicalURL: URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ")!,
+                thumbnailURL: nil,
+                playbackMode: .inAppBrowser,
+                contentHost: .youtube,
+                title: "\(region.displayLabel) Mobility Flow",
+                creatorName: "HydraScan Curated",
+                creatorCredentials: "Licensed PT Review",
+                sourceQualityTier: .ptReviewedPlatform,
+                language: "en",
+                durationSeconds: 300 + (index * 60),
+                bodyRegions: [region],
+                symptomTags: [symptom],
+                movementTags: ["mobility", region.rawValue],
+                goalTags: [goal],
+                equipmentTags: [],
+                activityTriggerTags: [],
+                level: index < 2 ? "beginner" : "all_levels",
+                contraindicationTags: ["sharp_pain", "recent_trauma"],
+                practitionerNotes: "Stay within a comfortable range and stop if symptoms intensify.",
+                hydrawavPairing: nil,
+                qualityScore: 0.92,
+                confidenceScore: 0.9,
+                humanReviewStatus: .approved,
+                lastReviewedAt: nil
+            )
+
+            let pairing = HydrawavPairing(
+                sunPad: region.rawValue,
+                moonPad: region.rawValue,
+                intensity: goal == .relaxation ? "gentle" : "gentle_to_moderate",
+                durationMin: cadence == .postActivity ? 7 : 9,
+                practitionerNote: "Pair this movement with your guided Hydrawav recovery cadence."
+            )
+
+            return RecoveryPlanItem(
+                id: UUID(),
+                planID: planID,
+                position: index + 1,
+                itemRole: index < 3 ? .required : .optionalSupport,
+                region: region,
+                symptom: symptom,
+                cadence: cadence,
+                weeklyTargetCount: cadence == .postActivity ? 3 : 7,
+                rationale: "Chosen from your current recovery regions, movement signals, and goal.",
+                displayNotes: profile.activityContext?.nilIfBlank,
+                hydrawavPairing: pairing,
+                video: video
+            )
+        }
+
+        let reason: RecoveryPlanRefreshDecision = {
+            if recoveryPlansByClientID[clientID]?.isEmpty != false {
+                return .initialIntake
+            }
+
+            return forceRefresh ? .manualRefresh : .assessmentChange
+        }()
+
+        let plan = RecoveryPlan(
+            id: planID,
+            clientID: clientID,
+            clinicID: profile.clinicID ?? UUID(),
+            status: .active,
+            refreshReason: planRefreshReason(from: reason),
+            sourceAssessmentID: sourceAssessmentID,
+            summary: "Built from \(orderedRegions.first?.displayLabel ?? "your mobility signals") and your \(goal.displayLabel.lowercased()) goal.",
+            activityContext: profile.activityContext,
+            primaryRegions: orderedRegions,
+            recoverySignals: signals,
+            goals: profile.goals.isEmpty ? [goal] : profile.goals,
+            safetyPauseReason: nil,
+            pausedForSafetyAt: nil,
+            createdAt: Date(),
+            updatedAt: Date(),
+            items: items,
+            recentCompletionLogs: [],
+            progress: buildMockProgressSummary(for: items, logs: [], isPaused: false)
+        )
+
+        var plans = recoveryPlansByClientID[clientID, default: []]
+        if let activeIndex = plans.firstIndex(where: { $0.status == .active || $0.status == .pausedForSafety }) {
+            let previous = plans[activeIndex]
+            plans[activeIndex] = RecoveryPlan(
+                id: previous.id,
+                clientID: previous.clientID,
+                clinicID: previous.clinicID,
+                status: .superseded,
+                refreshReason: previous.refreshReason,
+                sourceAssessmentID: previous.sourceAssessmentID,
+                summary: previous.summary,
+                activityContext: previous.activityContext,
+                primaryRegions: previous.primaryRegions,
+                recoverySignals: previous.recoverySignals,
+                goals: previous.goals,
+                safetyPauseReason: previous.safetyPauseReason,
+                pausedForSafetyAt: previous.pausedForSafetyAt,
+                createdAt: previous.createdAt,
+                updatedAt: Date(),
+                items: previous.items,
+                recentCompletionLogs: previous.recentCompletionLogs,
+                progress: previous.progress
+            )
+        }
+
+        plans.insert(plan, at: 0)
+        recoveryPlansByClientID[clientID] = plans
+        return RecoveryPlanRefreshResult(refreshed: true, reason: reason, plan: plan)
+    }
+
+    private func exerciseSymptom(from signalType: RecoverySignalType) -> ExerciseSymptom {
+        switch signalType {
+        case .stiffness:
+            return .stiffness
+        case .soreness:
+            return .soreness
+        case .tightness:
+            return .tightness
+        case .restriction:
+            return .restriction
+        case .guarding:
+            return .guarding
+        }
+    }
+
+    private func planRefreshReason(from decision: RecoveryPlanRefreshDecision) -> PlanRefreshReason {
+        switch decision {
+        case .initialIntake:
+            return .initialIntake
+        case .goalChange:
+            return .goalChange
+        case .signalChange:
+            return .signalChange
+        case .assessmentChange:
+            return .assessmentChange
+        case .stalePlan:
+            return .stalePlan
+        case .manualRefresh, .noChange, .noPlanAvailable:
+            return .manualRefresh
+        }
+    }
+
+    private func buildMockProgressSummary(
+        for items: [RecoveryPlanItem],
+        logs: [RecoveryPlanCompletionLog],
+        isPaused: Bool
+    ) -> RecoveryPlanProgressSummary {
+        let completedThisWeek = logs.filter { $0.status == .completed }.count
+        let assignedThisWeek = items.reduce(0) { $0 + $1.weeklyTargetCount }
+        return RecoveryPlanProgressSummary(
+            completedThisWeek: completedThisWeek,
+            assignedThisWeek: assignedThisWeek,
+            totalItems: items.count,
+            requiredItems: items.filter { $0.itemRole == .required }.count,
+            optionalItems: items.filter { $0.itemRole == .optionalSupport }.count,
+            completionRate: assignedThisWeek > 0 ? min(1, Double(completedThisWeek) / Double(assignedThisWeek)) : 0,
+            latestCompletionAt: logs.sorted { $0.primaryTimestamp > $1.primaryTimestamp }.first?.primaryTimestamp,
+            pausedForSafety: isPaused
+        )
+    }
+
+    private func containsSafetyStopLanguage(_ notes: String?) -> Bool {
+        guard let normalized = notes?.lowercased(), !normalized.isEmpty else {
+            return false
+        }
+
+        return [
+            "sharp pain",
+            "dizziness",
+            "numbness",
+            "weakness",
+            "swelling",
+            "recent trauma",
+            "post-op",
+            "post op",
+        ].contains { normalized.contains($0) }
     }
 }
 
@@ -566,6 +992,53 @@ private struct CheckinRecorderResponse: Decodable {
         case checkinId = "checkinId"
         case recoveryScore = "recoveryScore"
     }
+}
+
+private struct RecoveryPlanActionRequest: Encodable {
+    var action: String
+    var assessmentID: UUID?
+    var forceRefresh: Bool?
+    var planItemID: UUID?
+    var status: CompletionStatus?
+    var toleranceRating: Int?
+    var difficultyRating: Int?
+    var symptomResponse: SymptomResponse?
+    var notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case action
+        case assessmentID = "assessment_id"
+        case forceRefresh = "force_refresh"
+        case planItemID = "plan_item_id"
+        case status
+        case toleranceRating = "tolerance_rating"
+        case difficultyRating = "difficulty_rating"
+        case symptomResponse = "symptom_response"
+        case notes
+    }
+}
+
+private struct RecoveryPlanFunctionEnvelope<Payload: Decodable>: Decodable {
+    var success: Bool
+    var data: Payload
+}
+
+private struct ActiveRecoveryPlanPayload: Decodable {
+    var plan: RecoveryPlan?
+}
+
+private struct RecoveryPlanHistoryPayload: Decodable {
+    var history: [RecoveryPlanHistoryEntry]
+}
+
+private struct RecoveryPlanRefreshPayload: Decodable {
+    var refreshed: Bool
+    var reason: RecoveryPlanRefreshDecision
+    var plan: RecoveryPlan?
+}
+
+private struct RecoveryPlanLogPayload: Decodable {
+    var plan: RecoveryPlan?
 }
 
 private struct RecoveryIntelligenceActionRequest: Encodable {
@@ -669,6 +1142,7 @@ final class HydraSupabaseCore {
             options: SupabaseClientOptions(
                 auth: .init(
                     redirectToURL: HydraRuntime.authCallbackURL,
+                    autoRefreshToken: true,
                     emitLocalSessionAsInitialSession: true
                 )
             )
@@ -833,6 +1307,29 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         await core.currentSessionContext()
     }
 
+    func fetchAuthDiagnostics() async -> HydraAuthDiagnostics {
+        let session: Session?
+        if let currentSession = core.client.auth.currentSession {
+            session = currentSession
+        } else {
+            session = try? await core.client.auth.session
+        }
+        let authUser = session?.user
+        let providers = Set(authUser?.identities?.map(\.provider) ?? [])
+        let lastInvoke = await HydraAuthDiagnosticsStore.shared.snapshot()
+
+        return HydraAuthDiagnostics(
+            authUserID: authUser?.id,
+            email: authUser?.email,
+            providers: Array(providers).sorted(),
+            sessionExists: session != nil,
+            accessTokenPresent: !(session?.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true),
+            sessionMode: nil,
+            lastSuccessfulFunctionName: lastInvoke.name,
+            lastSuccessfulFunctionAt: lastInvoke.date
+        )
+    }
+
     func ensureClientProfile(for user: HydraUser) async throws -> ClientProfile {
         if let profile = try await core.fetchClientProfile(userID: user.id) {
             return profile
@@ -844,6 +1341,81 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         }
 
         throw SupabaseServiceError.missingProfile
+    }
+
+    private func requireAuthenticatedSession(forceRefresh: Bool = false) async throws -> Session {
+        let session: Session
+
+        do {
+            session = forceRefresh
+                ? try await core.client.auth.refreshSession()
+                : try await core.client.auth.session
+        } catch {
+            core.client.functions.setAuth(token: nil)
+
+            if forceRefresh {
+                throw SupabaseServiceError.sessionExpired
+            }
+
+            if core.client.auth.currentSession != nil {
+                return try await requireAuthenticatedSession(forceRefresh: true)
+            }
+
+            throw SupabaseServiceError.missingUser
+        }
+
+        let accessToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !accessToken.isEmpty else {
+            core.client.functions.setAuth(token: nil)
+            throw SupabaseServiceError.missingAccessToken
+        }
+
+        core.client.functions.setAuth(token: accessToken)
+        return session
+    }
+
+    private func invokeAuthenticatedFunction<Response: Decodable, Body: Encodable>(
+        _ functionName: String,
+        body: Body,
+        allowRetry: Bool = true
+    ) async throws -> Response {
+        let session = try await requireAuthenticatedSession()
+
+        do {
+            let response: Response = try await core.client.functions.invoke(
+                functionName,
+                options: FunctionInvokeOptions(
+                    headers: ["Authorization": "Bearer \(session.accessToken)"],
+                    body: body
+                )
+            )
+            await HydraAuthDiagnosticsStore.shared.recordSuccessfulInvoke(functionName: functionName)
+            return response
+        } catch {
+            guard isUnauthorizedFunctionError(error), allowRetry else {
+                throw error
+            }
+
+            let refreshedSession = try await requireAuthenticatedSession(forceRefresh: true)
+
+            do {
+                let response: Response = try await core.client.functions.invoke(
+                    functionName,
+                    options: FunctionInvokeOptions(
+                        headers: ["Authorization": "Bearer \(refreshedSession.accessToken)"],
+                        body: body
+                    )
+                )
+                await HydraAuthDiagnosticsStore.shared.recordSuccessfulInvoke(functionName: functionName)
+                return response
+            } catch {
+                if isUnauthorizedFunctionError(error) {
+                    throw SupabaseServiceError.sessionExpired
+                }
+
+                throw error
+            }
+        }
     }
 
     func fetchClientProfile(userID: UUID) async throws -> ClientProfile {
@@ -950,14 +1522,12 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         }
 
         do {
-            let recoveryMapResponse: RecoveryMapFunctionResponse = try await core.client.functions.invoke(
+            let recoveryMapResponse: RecoveryMapFunctionResponse = try await invokeAuthenticatedFunction(
                 "recovery-intelligence",
-                options: FunctionInvokeOptions(
-                    body: RecoveryIntelligenceActionRequest(
-                        action: "recovery-map",
-                        clientID: clientProfileID,
-                        assessmentID: saved.id
-                    )
+                body: RecoveryIntelligenceActionRequest(
+                    action: "recovery-map",
+                    clientID: clientProfileID,
+                    assessmentID: saved.id
                 )
             )
 
@@ -982,18 +1552,28 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         }
 
         do {
-            let _: RecoveryScoreFunctionResponse = try await core.client.functions.invoke(
+            let _: RecoveryScoreFunctionResponse = try await invokeAuthenticatedFunction(
                 "recovery-intelligence",
-                options: FunctionInvokeOptions(
-                    body: RecoveryIntelligenceActionRequest(
-                        action: "recovery-score",
-                        clientID: clientProfileID,
-                        assessmentID: saved.id
-                    )
+                body: RecoveryIntelligenceActionRequest(
+                    action: "recovery-score",
+                    clientID: clientProfileID,
+                    assessmentID: saved.id
                 )
             )
         } catch {
             // A saved assessment should not fail just because the score refresh route is unavailable.
+        }
+
+        if [.intake, .reassessment, .followUp].contains(saved.assessmentType) {
+            do {
+                let _: RecoveryPlanRefreshResult = try await refreshRecoveryPlanIfNeeded(
+                    clientID: clientProfileID,
+                    assessmentID: saved.id,
+                    forceRefresh: false
+                )
+            } catch {
+                // Assessment persistence should not fail if the recovery-plan service is unavailable.
+            }
         }
 
         return saved
@@ -1015,6 +1595,80 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
     func fetchLatestAssessment(clientID: UUID) async throws -> Assessment? {
         try await fetchAssessments(clientID: clientID).first
+    }
+
+    func fetchActiveRecoveryPlan(clientID: UUID) async throws -> RecoveryPlan? {
+        let _: UUID = try await core.resolveClientProfileID(for: clientID)
+        let response: RecoveryPlanFunctionEnvelope<ActiveRecoveryPlanPayload> = try await invokeAuthenticatedFunction(
+            "recovery-plan-service",
+            body: RecoveryPlanActionRequest(action: "fetch_active_plan")
+        )
+        return response.data.plan
+    }
+
+    func fetchRecoveryPlanHistory(clientID: UUID) async throws -> [RecoveryPlanHistoryEntry] {
+        let _: UUID = try await core.resolveClientProfileID(for: clientID)
+        let response: RecoveryPlanFunctionEnvelope<RecoveryPlanHistoryPayload> = try await invokeAuthenticatedFunction(
+            "recovery-plan-service",
+            body: RecoveryPlanActionRequest(action: "list_plan_history")
+        )
+        return response.data.history
+    }
+
+    func refreshRecoveryPlanIfNeeded(clientID: UUID, assessmentID: UUID?, forceRefresh: Bool) async throws -> RecoveryPlanRefreshResult {
+        let _: UUID = try await core.resolveClientProfileID(for: clientID)
+        let response: RecoveryPlanFunctionEnvelope<RecoveryPlanRefreshPayload> = try await invokeAuthenticatedFunction(
+            "recovery-plan-service",
+            body: RecoveryPlanActionRequest(
+                action: "refresh_if_needed",
+                assessmentID: assessmentID,
+                forceRefresh: forceRefresh,
+                planItemID: nil,
+                status: nil,
+                toleranceRating: nil,
+                difficultyRating: nil,
+                symptomResponse: nil,
+                notes: nil
+            )
+        )
+
+        return RecoveryPlanRefreshResult(
+            refreshed: response.data.refreshed,
+            reason: response.data.reason,
+            plan: response.data.plan
+        )
+    }
+
+    func logRecoveryPlanCompletion(
+        clientID: UUID,
+        planItemID: UUID,
+        status: CompletionStatus,
+        toleranceRating: Int?,
+        difficultyRating: Int?,
+        symptomResponse: SymptomResponse?,
+        notes: String?
+    ) async throws -> RecoveryPlan {
+        let _: UUID = try await core.resolveClientProfileID(for: clientID)
+        let response: RecoveryPlanFunctionEnvelope<RecoveryPlanLogPayload> = try await invokeAuthenticatedFunction(
+            "recovery-plan-service",
+            body: RecoveryPlanActionRequest(
+                action: "log_completion",
+                assessmentID: nil,
+                forceRefresh: nil,
+                planItemID: planItemID,
+                status: status,
+                toleranceRating: toleranceRating,
+                difficultyRating: difficultyRating,
+                symptomResponse: symptomResponse,
+                notes: notes?.nilIfBlank
+            )
+        )
+
+        guard let plan = response.data.plan else {
+            throw SupabaseServiceError.unavailable("The recovery plan log was saved but no updated plan was returned.")
+        }
+
+        return plan
     }
 
     func fetchSessions(clientID: UUID, limit: Int) async throws -> [HydraSession] {
@@ -1124,9 +1778,9 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
         let response: OutcomeRecorderResponse
         do {
-            response = try await core.client.functions.invoke(
+            response = try await invokeAuthenticatedFunction(
                 "outcome-recorder",
-                options: FunctionInvokeOptions(body: request)
+                body: request
             )
         } catch {
             guard isMissingFunctionRoute(error) else {
@@ -1207,15 +1861,13 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         let clientProfileID = try await core.resolveClientProfileID(for: checkin.clientID)
         let response: CheckinRecorderResponse
         do {
-            response = try await core.client.functions.invoke(
+            response = try await invokeAuthenticatedFunction(
                 "checkin-recorder",
-                options: FunctionInvokeOptions(
-                    body: CheckinRecorderRequest(
-                        checkinType: checkin.checkinType,
-                        overallFeeling: checkin.overallFeeling,
-                        targetRegions: checkin.targetRegions,
-                        activitySinceLast: checkin.activitySinceLast?.nilIfBlank
-                    )
+                body: CheckinRecorderRequest(
+                    checkinType: checkin.checkinType,
+                    overallFeeling: checkin.overallFeeling,
+                    targetRegions: checkin.targetRegions,
+                    activitySinceLast: checkin.activitySinceLast?.nilIfBlank
                 )
             )
         } catch {
@@ -1276,14 +1928,12 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         let clientProfileID = try await core.resolveClientProfileID(for: clientID)
 
         do {
-            let response: RecoveryScoreFunctionResponse = try await core.client.functions.invoke(
+            let response: RecoveryScoreFunctionResponse = try await invokeAuthenticatedFunction(
                 "recovery-intelligence",
-                options: FunctionInvokeOptions(
-                    body: RecoveryIntelligenceActionRequest(
-                        action: "recovery-score",
-                        clientID: clientProfileID,
-                        assessmentID: nil
-                    )
+                body: RecoveryIntelligenceActionRequest(
+                    action: "recovery-score",
+                    clientID: clientProfileID,
+                    assessmentID: nil
                 )
             )
 
@@ -1727,14 +2377,21 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
         return error.localizedDescription.contains("Edge Function returned a non-2xx status code: 404")
     }
 
+    private func isUnauthorizedFunctionError(_ error: Error) -> Bool {
+        if let functionsError = error as? FunctionsError,
+           case let .httpError(code, _) = functionsError {
+            return code == 401
+        }
+
+        return error.localizedDescription.contains("Edge Function returned a non-2xx status code: 401")
+    }
+
     func claimClinicInvite(inviteCode: String, fullName: String) async throws -> HydraSessionContext {
-        let response: ClaimClinicInviteResponse = try await core.client.functions.invoke(
+        let response: ClaimClinicInviteResponse = try await invokeAuthenticatedFunction(
             "claim-clinic-invite",
-            options: FunctionInvokeOptions(
-                body: ClaimClinicInviteRequest(
-                    inviteCode: inviteCode.trimmingCharacters(in: .whitespacesAndNewlines),
-                    fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
+            body: ClaimClinicInviteRequest(
+                inviteCode: inviteCode.trimmingCharacters(in: .whitespacesAndNewlines),
+                fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines)
             )
         )
 
@@ -1748,6 +2405,8 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
 
     func resetSessionContext() async {
         await HydraSessionStore.shared.update(nil)
+        await HydraAuthDiagnosticsStore.shared.reset()
+        core.client.functions.setAuth(token: nil)
     }
 }
 #else
@@ -1757,12 +2416,36 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
     }
 
     func currentSessionContext() async -> HydraSessionContext? { nil }
+    func fetchAuthDiagnostics() async -> HydraAuthDiagnostics {
+        HydraAuthDiagnostics(
+            authUserID: nil,
+            email: nil,
+            providers: [],
+            sessionExists: false,
+            accessTokenPresent: false,
+            sessionMode: nil,
+            lastSuccessfulFunctionName: nil,
+            lastSuccessfulFunctionAt: nil
+        )
+    }
     func ensureClientProfile(for user: HydraUser) async throws -> ClientProfile { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchClientProfile(userID: UUID) async throws -> ClientProfile { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func updateClientProfile(_ profile: ClientProfile) async throws -> ClientProfile { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func createAssessment(_ assessment: Assessment) async throws -> Assessment { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchAssessments(clientID: UUID) async throws -> [Assessment] { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchLatestAssessment(clientID: UUID) async throws -> Assessment? { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
+    func fetchActiveRecoveryPlan(clientID: UUID) async throws -> RecoveryPlan? { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
+    func fetchRecoveryPlanHistory(clientID: UUID) async throws -> [RecoveryPlanHistoryEntry] { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
+    func refreshRecoveryPlanIfNeeded(clientID: UUID, assessmentID: UUID?, forceRefresh: Bool) async throws -> RecoveryPlanRefreshResult { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
+    func logRecoveryPlanCompletion(
+        clientID: UUID,
+        planItemID: UUID,
+        status: CompletionStatus,
+        toleranceRating: Int?,
+        difficultyRating: Int?,
+        symptomResponse: SymptomResponse?,
+        notes: String?
+    ) async throws -> RecoveryPlan { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchSessions(clientID: UUID, limit: Int) async throws -> [HydraSession] { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchLatestSession(clientID: UUID, statuses: [HydraSessionStatus]?) async throws -> HydraSession? { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }
     func fetchSessionAwareness(clientID: UUID) async throws -> HydraSessionAwareness { throw SupabaseServiceError.unavailable("Supabase is unavailable in this build.") }

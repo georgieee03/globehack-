@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -24,14 +23,24 @@ struct LoginView: View {
                                 .font(HydraTypography.body(15))
                                 .foregroundStyle(HydraTheme.Colors.secondaryText)
 
-                            SignInWithAppleButton(.continue) { request in
-                                request.requestedScopes = [.fullName, .email]
-                            } onCompletion: { result in
-                                handleAppleSignIn(result)
+                            Button {
+                                Task {
+                                    await viewModel.signInWithApple()
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "apple.logo")
+                                        .font(.system(size: 18, weight: .semibold))
+                                    Text("Continue with Apple")
+                                        .font(HydraTypography.body(17, weight: .semibold))
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 54)
+                                .foregroundStyle(Color.black)
+                                .background(
+                                    RoundedRectangle(cornerRadius: HydraTheme.Radius.button, style: .continuous)
+                                        .fill(Color.white)
+                                )
                             }
-                            .signInWithAppleButtonStyle(.white)
-                            .frame(height: 54)
-                            .clipShape(RoundedRectangle(cornerRadius: HydraTheme.Radius.button, style: .continuous))
                         }
                     }
 
@@ -62,6 +71,29 @@ struct LoginView: View {
                             .buttonStyle(HydraButtonStyle(kind: .secondary))
                         }
                     }
+
+#if DEBUG
+                    if viewModel.canUseDemoQA {
+                        HydraCard(role: .panel) {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text("Developer Demo")
+                                    .font(HydraTypography.section(24))
+                                    .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                                Text("Use the seeded QA client for demos and QA without changing the public auth flow for real accounts.")
+                                    .font(HydraTypography.body(15))
+                                    .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+                                Button("Use demo QA client") {
+                                    Task {
+                                        await viewModel.signInWithDemoQA()
+                                    }
+                                }
+                                .buttonStyle(HydraButtonStyle(kind: .secondary))
+                            }
+                        }
+                    }
+#endif
 
                     HydraCard(role: .ivory) {
                         VStack(alignment: .leading, spacing: 10) {
@@ -102,33 +134,6 @@ struct LoginView: View {
                     }
                     .padding(HydraTheme.Spacing.page)
                 }
-            }
-        }
-    }
-
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case let .failure(error):
-            viewModel.errorMessage = error.localizedDescription
-        case let .success(authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                viewModel.errorMessage = "Apple Sign-In returned an unexpected credential."
-                return
-            }
-
-            guard
-                let identityTokenData = credential.identityToken,
-                let identityToken = String(data: identityTokenData, encoding: .utf8)
-            else {
-                viewModel.errorMessage = AuthServiceError.missingIdentityToken.localizedDescription
-                return
-            }
-
-            Task {
-                await viewModel.signInWithApple(
-                    idToken: identityToken,
-                    fullName: credential.fullName?.formatted()
-                )
             }
         }
     }

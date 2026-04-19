@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var recoveryScore: RecoveryScore?
+    @Published var activeRecoveryPlan: RecoveryPlan?
     @Published var gamificationState = GamificationState(xp: 0, level: 1, streakDays: 0, lastActivityDate: nil)
     @Published var clientProfile = ClientProfile.empty
     @Published var assessments: [Assessment] = []
@@ -111,6 +112,12 @@ final class HomeViewModel: ObservableObject {
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+
+        do {
+            activeRecoveryPlan = try await service.fetchActiveRecoveryPlan(clientID: user.id)
+        } catch {
+            activeRecoveryPlan = nil
         }
 
         isLoading = false

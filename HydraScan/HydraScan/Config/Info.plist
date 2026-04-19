@@ -41,8 +41,8 @@
 	<string>HydraScan may write recovery-related wellness summaries back to Health when you enable that connection.</string>
 	<key>QUICKPOSE_SDK_KEY</key>
 	<string>$(QUICKPOSE_SDK_KEY)</string>
-	<key>HYDRASCAN_DEBUG_AUTOLOGIN</key>
-	<string>$(HYDRASCAN_DEBUG_AUTOLOGIN)</string>
+	<key>HYDRASCAN_ENABLE_DEMO_QA_BUTTON</key>
+	<string>$(HYDRASCAN_ENABLE_DEMO_QA_BUTTON)</string>
 	<key>DEV_QA_EMAIL</key>
 	<string>$(DEV_QA_EMAIL)</string>
 	<key>DEV_QA_PASSWORD</key>

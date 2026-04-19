@@ -5,6 +5,8 @@ import Foundation
 final class AuthViewModel: ObservableObject {
     @Published var authUser: HydraAuthUser?
     @Published var sessionContext: HydraSessionContext?
+    @Published var sessionMode: HydraSessionMode?
+    @Published var authDiagnostics: HydraAuthDiagnostics = .empty
     @Published var emailAddress = ""
     @Published var onboardingFullName = ""
     @Published var clinicInviteCode = ""
@@ -32,6 +34,10 @@ final class AuthViewModel: ObservableObject {
         authUser != nil
     }
 
+    var canUseDemoQA: Bool {
+        HydraRuntime.isDemoQAButtonEnabled
+    }
+
     var shouldShowOnboarding: Bool {
         isAuthenticated && sessionContext == nil
     }
@@ -56,22 +62,11 @@ final class AuthViewModel: ObservableObject {
         await loadAuthState { [self] in
             try await self.service.restoreSession()
         }
-
-        guard authUser == nil, sessionContext == nil else { return }
-        guard let qaCredentials = HydraRuntime.qaAutologinCredentials else { return }
-
-        infoMessage = "Signing into the seeded QA client for simulator verification."
-        await loadAuthState { [self] in
-            try await self.service.signInWithPassword(
-                email: qaCredentials.email,
-                password: qaCredentials.password
-            )
-        }
     }
 
-    func signInWithApple(idToken: String, fullName: String?) async {
+    func signInWithApple() async {
         await loadAuthState { [self] in
-            try await self.service.signInWithApple(idToken: idToken, fullName: fullName)
+            try await self.service.signInWithApple()
         }
     }
 
@@ -88,6 +83,21 @@ final class AuthViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    func signInWithDemoQA() async {
+        guard let qaCredentials = HydraRuntime.demoQACredentials else {
+            errorMessage = "Demo QA credentials are not configured for this build."
+            return
+        }
+
+        infoMessage = "Signing into the demo QA client."
+        await loadAuthState { [self] in
+            try await self.service.signInWithPassword(
+                email: qaCredentials.email,
+                password: qaCredentials.password
+            )
+        }
     }
 
     func handleOpenURL(_ url: URL) async {
@@ -126,6 +136,7 @@ final class AuthViewModel: ObservableObject {
 
             let refreshed = try await service.refreshSession()
             apply(snapshot: refreshed)
+            await refreshDiagnostics()
             infoMessage = "Clinic access is ready. Your recovery profile is now live."
         } catch {
             errorMessage = error.localizedDescription
@@ -138,11 +149,20 @@ final class AuthViewModel: ObservableObject {
         await service.signOut()
         authUser = nil
         sessionContext = nil
+        sessionMode = nil
+        authDiagnostics = .empty
         emailAddress = ""
         clinicInviteCode = ""
         onboardingFullName = ""
         errorMessage = nil
         infoMessage = nil
+        await refreshDiagnostics()
+    }
+
+    func refreshDiagnostics() async {
+        var diagnostics = await supabaseService.fetchAuthDiagnostics()
+        diagnostics.sessionMode = sessionMode
+        authDiagnostics = diagnostics
     }
 
     private func loadAuthState(
@@ -155,8 +175,10 @@ final class AuthViewModel: ObservableObject {
         do {
             let snapshot = try await operation()
             apply(snapshot: snapshot)
+            await refreshDiagnostics()
         } catch {
             errorMessage = error.localizedDescription
+            await refreshDiagnostics()
         }
 
         isLoading = false
@@ -165,6 +187,7 @@ final class AuthViewModel: ObservableObject {
     private func apply(snapshot: AuthStateSnapshot) {
         authUser = snapshot.authUser
         sessionContext = snapshot.sessionContext
+        sessionMode = HydraRuntime.sessionMode(for: snapshot.authUser)
 
         if onboardingFullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             onboardingFullName = snapshot.sessionContext?.appUser.fullName

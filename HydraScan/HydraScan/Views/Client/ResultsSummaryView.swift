@@ -1,10 +1,15 @@
 import SwiftUI
 
 struct ResultsSummaryView: View {
+    let user: HydraUser
+    let service: SupabaseServiceProtocol
     let assessment: Assessment
     let persistenceState: AssessmentPersistenceState?
     let onContinue: () -> Void
     let onStartOver: () -> Void
+
+    @State private var activePlan: RecoveryPlan?
+    @State private var isLoadingPlan = false
 
     var body: some View {
         ScrollView {
@@ -20,6 +25,49 @@ struct ResultsSummaryView: View {
                 }
 
                 summaryOverviewCard
+
+                if isLoadingPlan && activePlan == nil {
+                    HydraCard(role: .ivory) {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                                .tint(HydraTheme.Colors.gold)
+                            Text("Preparing your linked recovery plan…")
+                                .font(HydraTypography.body(15, weight: .medium))
+                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                        }
+                    }
+                } else if let activePlan {
+                    NavigationLink {
+                        RecoveryPlanView(user: user, service: service, initialPlan: activePlan)
+                    } label: {
+                        HydraCard(role: .ivory) {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text("Recovery Plan Ready")
+                                    .font(HydraTypography.section(28))
+                                    .foregroundStyle(HydraTheme.Colors.ink)
+
+                                Text("Your latest scan now has a linked instructional plan with curated exercise videos, Hydrawav pairing, and completion logging.")
+                                    .font(HydraTypography.body(15))
+                                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
+
+                                HydraMetricRow(
+                                    label: "Plan Status",
+                                    value: activePlan.status.displayLabel,
+                                    accent: HydraTheme.Colors.ink,
+                                    labelWidth: 100
+                                )
+
+                                HydraMetricRow(
+                                    label: "Next Item",
+                                    value: activePlan.nextSuggestedItem?.video.title ?? "Review your plan",
+                                    accent: HydraTheme.Colors.ink,
+                                    labelWidth: 100
+                                )
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 metricCard(
                     title: "Range of Motion",
@@ -104,6 +152,20 @@ struct ResultsSummaryView: View {
                 }
             }
             .padding(.vertical, 12)
+        }
+        .task(id: assessment.id) {
+            await loadRecoveryPlan()
+        }
+    }
+
+    private func loadRecoveryPlan() async {
+        isLoadingPlan = true
+        defer { isLoadingPlan = false }
+
+        do {
+            activePlan = try await service.fetchActiveRecoveryPlan(clientID: user.id)
+        } catch {
+            activePlan = nil
         }
     }
 
@@ -351,6 +413,13 @@ private extension AssessmentPersistenceState {
 }
 
 #Preview {
-    ResultsSummaryView(assessment: Assessment.preview, persistenceState: .uploaded("Assessment saved to your recovery timeline."), onContinue: {}, onStartOver: {})
+    ResultsSummaryView(
+        user: .preview,
+        service: MockSupabaseService.shared,
+        assessment: Assessment.preview,
+        persistenceState: .uploaded("Assessment saved to your recovery timeline."),
+        onContinue: {},
+        onStartOver: {}
+    )
         .padding()
 }

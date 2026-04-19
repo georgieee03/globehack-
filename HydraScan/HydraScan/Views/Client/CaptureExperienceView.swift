@@ -32,6 +32,8 @@ struct CaptureExperienceView: View {
                         }
                     case let .results(assessment, persistenceState):
                         ResultsSummaryView(
+                            user: user,
+                            service: service,
                             assessment: assessment,
                             persistenceState: persistenceState,
                             onContinue: { screen = .feedback(assessment) },

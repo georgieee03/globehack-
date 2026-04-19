@@ -4,6 +4,33 @@ import Foundation
 import Supabase
 #endif
 
+enum HydraSessionMode: String, Equatable {
+    case real
+    case demo
+}
+
+struct HydraAuthDiagnostics: Equatable {
+    var authUserID: UUID?
+    var email: String?
+    var providers: [String]
+    var sessionExists: Bool
+    var accessTokenPresent: Bool
+    var sessionMode: HydraSessionMode?
+    var lastSuccessfulFunctionName: String?
+    var lastSuccessfulFunctionAt: Date?
+
+    static let empty = HydraAuthDiagnostics(
+        authUserID: nil,
+        email: nil,
+        providers: [],
+        sessionExists: false,
+        accessTokenPresent: false,
+        sessionMode: nil,
+        lastSuccessfulFunctionName: nil,
+        lastSuccessfulFunctionAt: nil
+    )
+}
+
 struct AuthStateSnapshot: Equatable {
     var authUser: HydraAuthUser?
     var sessionContext: HydraSessionContext?
@@ -14,7 +41,7 @@ struct AuthStateSnapshot: Equatable {
 @MainActor
 protocol AuthServiceProtocol {
     func restoreSession() async throws -> AuthStateSnapshot
-    func signInWithApple(idToken: String, fullName: String?) async throws -> AuthStateSnapshot
+    func signInWithApple() async throws -> AuthStateSnapshot
     func signInWithPassword(email: String, password: String) async throws -> AuthStateSnapshot
     func signInWithEmail(_ email: String) async throws
     func verifyMagicLink(_ url: URL) async throws -> AuthStateSnapshot
@@ -68,9 +95,9 @@ final class MockAuthService: AuthServiceProtocol {
         return AuthStateSnapshot(authUser: cachedAuthUser, sessionContext: cachedContext)
     }
 
-    func signInWithApple(idToken: String, fullName: String?) async throws -> AuthStateSnapshot {
+    func signInWithApple() async throws -> AuthStateSnapshot {
         if let liveService {
-            return try await liveService.signInWithApple(idToken: idToken, fullName: fullName)
+            return try await liveService.signInWithApple()
         }
 
         let appUser = HydraUser(
@@ -78,7 +105,7 @@ final class MockAuthService: AuthServiceProtocol {
             clinicID: nil,
             role: .client,
             email: "apple-client@hydrascan.app",
-            fullName: fullName ?? "HydraScan Client",
+            fullName: "HydraScan Client",
             phone: nil,
             dateOfBirth: nil,
             authProvider: "apple",
@@ -205,19 +232,16 @@ final class LiveAuthService: AuthServiceProtocol {
         try await loadCurrentSnapshot(allowProvisioningRetry: false)
     }
 
-    func signInWithApple(idToken: String, fullName: String?) async throws -> AuthStateSnapshot {
-        let session = try await core.client.auth.signInWithIdToken(
-            credentials: .init(
-                provider: .apple,
-                idToken: idToken
-            )
-        )
-
-        if let fullName, !fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            _ = try? await core.client.auth.update(
-                user: UserAttributes(data: ["full_name": .string(fullName)])
-            )
+    func signInWithApple() async throws -> AuthStateSnapshot {
+        guard let callbackURL = HydraRuntime.authCallbackURL else {
+            throw SupabaseServiceError.missingCallbackConfiguration
         }
+
+        let session = try await core.client.auth.signInWithOAuth(
+            provider: .apple,
+            redirectTo: callbackURL,
+            scopes: "name email"
+        )
 
         return try await buildSnapshot(from: session.user, allowProvisioningRetry: true)
     }

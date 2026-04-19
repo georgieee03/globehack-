@@ -30,10 +30,11 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
+site_url = "com.srinesan.hydrascan://auth-callback"
 additional_redirect_urls = [
-  "http://localhost:3000",
-  "hydrascan://auth/callback"
+  "com.srinesan.hydrascan://auth-callback",
+  "hydrascan://auth/callback",
+  "http://localhost:3000"
 ]
 jwt_expiry = 3600
 enable_signup = true
@@ -45,7 +46,13 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [auth.external.apple]
-enabled = true
+enabled = false
 client_id = "env(APPLE_CLIENT_ID)"
 secret = "env(APPLE_CLIENT_SECRET)"
 redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
