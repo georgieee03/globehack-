@@ -20,47 +20,6 @@ HydraScan is a practitioner-first recovery intelligence platform for the Hydrawa
 - `backend/` owns the multi-tenant Supabase data layer, Row Level Security policies, onboarding helpers, and Hydrawav3 integration points.
 - The iOS app mirrors these backend contracts in Swift, so keeping `shared/` stable is the easiest way to prevent drift between the assessment pipeline and the backend foundation.
 
-## Quick Start
-
-1. Install Node.js 20+ and `pnpm`.
-2. Copy `.env.example` to `.env` and fill in the required values.
-3. Install workspace dependencies with `pnpm install`.
-4. Run `pnpm typecheck` to validate the shared package.
-5. Use the Supabase CLI from `backend/` to start local services and apply migrations.
-
-## Environment Variables
-
-The root `.env.example` lists the required backend variables:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `HYDRAWAV_API_BASE_URL`
-- `LLM_API_KEY`
-
-`HYDRAWAV_API_BASE_URL=simulation` enables first-class simulation mode so backend and iOS teams can exercise the full session-control flow before live Hydrawav3 credentials are available.
-
-## Supabase and Auth Notes
-
-- Supabase Auth is the primary identity layer.
-- Email magic link is the default sign-in path.
-- Apple Sign-In must also be enabled for iOS compatibility.
-- Edge Functions read environment configuration through `Deno.env.get()`.
-
-## Team Branch Strategy
-
-Use `main` as the integration branch and keep each spec area isolated on its owner branch until it is ready to merge:
-
-- `allu-dev`: backend foundation, Supabase schema, auth, MQTT proxy
-- `kaush-dev`: iOS assessment pipeline and client app
-- `sri-dev`: recovery intelligence engine and practitioner dashboard
-- `geo-dev`: outcomes analytics, admin metrics, and final integration
-
-Keep cross-cutting contract changes visible:
-
-1. Update `shared/` first when a payload or enum changes.
-2. Call out any schema or auth changes in the PR description so iOS and dashboard work can adjust quickly.
-3. Preserve wellness language throughout code, docs, responses, and seeded data.
 
 ## Integration Notes for iOS
 
@@ -73,13 +32,6 @@ The iOS team depends on the backend foundation for:
 - `devices`, `sessions`, and the Hydrawav MQTT proxy for practitioner-controlled session launch and lifecycle updates
 
 If a backend change affects any of those touchpoints, keep the JSON shapes and enum values aligned with the iOS spec before merging.
-
-## Commands
-
-- `pnpm build`
-- `pnpm typecheck`
-- `pnpm lint`
-- `pnpm test`
 
 ## Current Foundation Goal
 
