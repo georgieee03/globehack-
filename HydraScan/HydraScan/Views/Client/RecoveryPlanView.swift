@@ -30,8 +30,22 @@ final class RecoveryPlanViewModel: ObservableObject {
         do {
             async let fetchedPlan = service.fetchActiveRecoveryPlan(clientID: user.id)
             async let fetchedHistory = service.fetchRecoveryPlanHistory(clientID: user.id)
-            let plan = try await fetchedPlan
-            let history = try await fetchedHistory
+            var plan = try await fetchedPlan
+            var history = try await fetchedHistory
+
+            if plan == nil {
+                let refreshResult = try await service.refreshRecoveryPlanIfNeeded(
+                    clientID: user.id,
+                    assessmentID: nil,
+                    forceRefresh: false
+                )
+                plan = refreshResult.plan ?? plan
+
+                if refreshResult.plan != nil {
+                    history = try await service.fetchRecoveryPlanHistory(clientID: user.id)
+                }
+            }
+
             activePlan = plan ?? seededPlan
             self.history = history
         } catch {

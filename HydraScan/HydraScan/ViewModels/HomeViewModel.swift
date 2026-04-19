@@ -60,6 +60,8 @@ final class HomeViewModel: ObservableObject {
         errorMessage = nil
         syncStatusMessage = nil
 
+        var latestLoadedAssessmentID: UUID?
+
         do {
             let syncedCount = try await offlineCacheService.syncCachedAssessments(using: service)
             if syncedCount > 0 {
@@ -91,6 +93,7 @@ final class HomeViewModel: ObservableObject {
 
             clientProfile = resolvedProfile
             assessments = resolvedAssessments
+            latestLoadedAssessmentID = resolvedAssessments.first?.id
             latestOutcome = resolvedOutcome
             sessionAwareness = resolvedAwareness
             recoveryScore = baseScore
@@ -118,6 +121,19 @@ final class HomeViewModel: ObservableObject {
             activeRecoveryPlan = try await service.fetchActiveRecoveryPlan(clientID: user.id)
         } catch {
             activeRecoveryPlan = nil
+        }
+
+        if activeRecoveryPlan == nil {
+            do {
+                let refreshResult = try await service.refreshRecoveryPlanIfNeeded(
+                    clientID: user.id,
+                    assessmentID: latestLoadedAssessmentID,
+                    forceRefresh: false
+                )
+                activeRecoveryPlan = refreshResult.plan
+            } catch {
+                activeRecoveryPlan = nil
+            }
         }
 
         isLoading = false

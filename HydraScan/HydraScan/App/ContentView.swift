@@ -163,28 +163,38 @@ private struct HomeTabView: View {
                         }
                     }
 
-                    if let activePlan = viewModel.activeRecoveryPlan {
-                        NavigationLink {
-                            RecoveryPlanView(user: user, service: service, initialPlan: activePlan)
-                        } label: {
-                            HydraCard(role: .ivory) {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    HStack(alignment: .top) {
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text("Active Recovery Plan")
-                                                .font(HydraTypography.section(28))
-                                                .foregroundStyle(HydraTheme.Colors.ink)
+                    NavigationLink {
+                        RecoveryPlanView(user: user, service: service, initialPlan: viewModel.activeRecoveryPlan)
+                    } label: {
+                        HydraCard(role: .ivory) {
+                            VStack(alignment: .leading, spacing: 14) {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(viewModel.activeRecoveryPlan == nil ? "Recovery Plan" : "Active Recovery Plan")
+                                            .font(HydraTypography.section(28))
+                                            .foregroundStyle(HydraTheme.Colors.ink)
 
+                                        if let activePlan = viewModel.activeRecoveryPlan {
                                             Text(activePlan.summary)
                                                 .font(HydraTypography.body(15))
                                                 .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                                        } else if viewModel.isLoading {
+                                            Text("Preparing your curated exercise videos, Hydrawav pairing, and plan progress for this client profile.")
+                                                .font(HydraTypography.body(15))
+                                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                                        } else {
+                                            Text("Open your curated exercise plan with instructional videos, safe pacing guidance, and completion logging.")
+                                                .font(HydraTypography.body(15))
+                                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
                                         }
-
-                                        Spacer()
-
-                                        HydraBrandLogo(height: 20, maxWidth: 120, alignment: .trailing)
                                     }
 
+                                    Spacer()
+
+                                    HydraBrandLogo(height: 20, maxWidth: 120, alignment: .trailing)
+                                }
+
+                                if let activePlan = viewModel.activeRecoveryPlan {
                                     HydraMetricRow(
                                         label: "Completed This Week",
                                         value: "\(activePlan.progress.completedThisWeek)/\(activePlan.progress.assignedThisWeek)",
@@ -198,11 +208,33 @@ private struct HomeTabView: View {
                                         accent: HydraTheme.Colors.ink,
                                         labelWidth: 140
                                     )
+                                } else if viewModel.isLoading {
+                                    HStack(spacing: 12) {
+                                        ProgressView()
+                                            .tint(HydraTheme.Colors.gold)
+                                        Text("Loading your active recovery plan…")
+                                            .font(HydraTypography.body(15, weight: .medium))
+                                            .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                                    }
+                                } else {
+                                    HydraMetricRow(
+                                        label: "Status",
+                                        value: "Open Plan",
+                                        accent: HydraTheme.Colors.ink,
+                                        labelWidth: 140
+                                    )
+
+                                    HydraMetricRow(
+                                        label: "Includes",
+                                        value: "Videos, rationale, progress",
+                                        accent: HydraTheme.Colors.ink,
+                                        labelWidth: 140
+                                    )
                                 }
                             }
                         }
-                        .buttonStyle(.plain)
                     }
+                    .buttonStyle(.plain)
 
                     HydraCard(role: .panel) {
                         StreakView(

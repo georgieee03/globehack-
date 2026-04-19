@@ -26,26 +26,24 @@ struct ResultsSummaryView: View {
 
                 summaryOverviewCard
 
-                if isLoadingPlan && activePlan == nil {
+                NavigationLink {
+                    RecoveryPlanView(user: user, service: service, initialPlan: activePlan)
+                } label: {
                     HydraCard(role: .ivory) {
-                        HStack(spacing: 12) {
-                            ProgressView()
-                                .tint(HydraTheme.Colors.gold)
-                            Text("Preparing your linked recovery plan…")
-                                .font(HydraTypography.body(15, weight: .medium))
-                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
-                        }
-                    }
-                } else if let activePlan {
-                    NavigationLink {
-                        RecoveryPlanView(user: user, service: service, initialPlan: activePlan)
-                    } label: {
-                        HydraCard(role: .ivory) {
-                            VStack(alignment: .leading, spacing: 14) {
-                                Text("Recovery Plan Ready")
-                                    .font(HydraTypography.section(28))
-                                    .foregroundStyle(HydraTheme.Colors.ink)
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text(activePlan == nil ? "Recovery Plan" : "Recovery Plan Ready")
+                                .font(HydraTypography.section(28))
+                                .foregroundStyle(HydraTheme.Colors.ink)
 
+                            if isLoadingPlan && activePlan == nil {
+                                HStack(spacing: 12) {
+                                    ProgressView()
+                                        .tint(HydraTheme.Colors.gold)
+                                    Text("Preparing your linked recovery plan…")
+                                        .font(HydraTypography.body(15, weight: .medium))
+                                        .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                                }
+                            } else if let activePlan {
                                 Text("Your latest scan now has a linked instructional plan with curated exercise videos, Hydrawav pairing, and completion logging.")
                                     .font(HydraTypography.body(15))
                                     .foregroundStyle(HydraTheme.Colors.inkSecondary)
@@ -63,11 +61,22 @@ struct ResultsSummaryView: View {
                                     accent: HydraTheme.Colors.ink,
                                     labelWidth: 100
                                 )
+                            } else {
+                                Text("Open the linked recovery plan to review curated exercise videos, Hydrawav pairing, and completion logging for this scan.")
+                                    .font(HydraTypography.body(15))
+                                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
+
+                                HydraMetricRow(
+                                    label: "Status",
+                                    value: "Open Plan",
+                                    accent: HydraTheme.Colors.ink,
+                                    labelWidth: 100
+                                )
                             }
                         }
                     }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
 
                 metricCard(
                     title: "Range of Motion",
@@ -163,9 +172,24 @@ struct ResultsSummaryView: View {
         defer { isLoadingPlan = false }
 
         do {
+            let refreshResult = try await service.refreshRecoveryPlanIfNeeded(
+                clientID: user.id,
+                assessmentID: assessment.id,
+                forceRefresh: false
+            )
+
+            if let refreshedPlan = refreshResult.plan {
+                activePlan = refreshedPlan
+                return
+            }
+
             activePlan = try await service.fetchActiveRecoveryPlan(clientID: user.id)
         } catch {
-            activePlan = nil
+            do {
+                activePlan = try await service.fetchActiveRecoveryPlan(clientID: user.id)
+            } catch {
+                activePlan = nil
+            }
         }
     }
 

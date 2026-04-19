@@ -531,17 +531,21 @@ async function insertPlanDraft(
   draft: RecoveryPlanDraft,
   previousPlan: RecoveryPlanRow | null,
 ) {
+  const stagedStatus = previousPlan ? "archived" : "active";
+  const stagedArchivedAt = previousPlan ? new Date().toISOString() : null;
+
   const { data: planRows, error: planInsertError } = await supabase
     .from("recovery_plans")
     .insert({
       client_id: clientId,
       clinic_id: clinicId,
       source_assessment_id: sourceAssessmentId,
-      status: "active",
+      status: stagedStatus,
       refresh_reason: draft.refreshReason,
       summary: draft.summary,
       activity_context: activityContext,
       generation_context: draft.generationContext,
+      archived_at: stagedArchivedAt,
     })
     .select()
     .limit(1);
@@ -598,6 +602,11 @@ async function insertPlanDraft(
     .insert(itemRows);
 
   if (itemInsertError) {
+    await supabase
+      .from("recovery_plans")
+      .delete()
+      .eq("id", plan.id);
+
     throw new HttpError(500, "Failed to create recovery-plan items", {
       detail: itemInsertError.message,
     });
@@ -614,10 +623,42 @@ async function insertPlanDraft(
       .eq("id", previousPlan.id);
 
     if (supersedeError) {
+      await supabase
+        .from("recovery_plans")
+        .delete()
+        .eq("id", plan.id);
+
       throw new HttpError(500, "Failed to supersede the previous recovery plan", {
         detail: supersedeError.message,
       });
     }
+
+    const { data: activatedRows, error: activateError } = await supabase
+      .from("recovery_plans")
+      .update({
+        status: "active",
+        archived_at: null,
+      })
+      .eq("id", plan.id)
+      .select()
+      .limit(1);
+
+    if (activateError || !activatedRows?.[0]) {
+      await supabase
+        .from("recovery_plans")
+        .update({
+          status: previousPlan.status,
+          superseded_at: null,
+          superseded_by_plan_id: null,
+        })
+        .eq("id", previousPlan.id);
+
+      throw new HttpError(500, "Failed to activate the refreshed recovery plan", {
+        detail: activateError?.message,
+      });
+    }
+
+    return activatedRows[0] as RecoveryPlanRow;
   }
 
   return plan;
