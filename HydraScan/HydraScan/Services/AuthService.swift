@@ -15,6 +15,7 @@ struct AuthStateSnapshot: Equatable {
 protocol AuthServiceProtocol {
     func restoreSession() async throws -> AuthStateSnapshot
     func signInWithApple(idToken: String, fullName: String?) async throws -> AuthStateSnapshot
+    func signInWithPassword(email: String, password: String) async throws -> AuthStateSnapshot
     func signInWithEmail(_ email: String) async throws
     func verifyMagicLink(_ url: URL) async throws -> AuthStateSnapshot
     func refreshSession() async throws -> AuthStateSnapshot
@@ -93,6 +94,29 @@ final class MockAuthService: AuthServiceProtocol {
             lastSignInAt: Date(),
             createdAt: appUser.createdAt,
             updatedAt: appUser.updatedAt
+        )
+        cachedAuthUser = authUser
+        cachedContext = nil
+        return AuthStateSnapshot(authUser: authUser, sessionContext: nil)
+    }
+
+    func signInWithPassword(email: String, password: String) async throws -> AuthStateSnapshot {
+        if let liveService {
+            return try await liveService.signInWithPassword(email: email, password: password)
+        }
+
+        guard email.contains("@"), email.contains("."), !password.isEmpty else {
+            throw AuthServiceError.invalidEmail
+        }
+
+        let authUser = HydraAuthUser(
+            id: UUID(),
+            email: email,
+            phone: nil,
+            providers: ["email"],
+            lastSignInAt: Date(),
+            createdAt: Date(),
+            updatedAt: Date()
         )
         cachedAuthUser = authUser
         cachedContext = nil
@@ -194,6 +218,15 @@ final class LiveAuthService: AuthServiceProtocol {
                 user: UserAttributes(data: ["full_name": .string(fullName)])
             )
         }
+
+        return try await buildSnapshot(from: session.user, allowProvisioningRetry: true)
+    }
+
+    func signInWithPassword(email: String, password: String) async throws -> AuthStateSnapshot {
+        let session = try await core.client.auth.signIn(
+            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+            password: password
+        )
 
         return try await buildSnapshot(from: session.user, allowProvisioningRetry: true)
     }

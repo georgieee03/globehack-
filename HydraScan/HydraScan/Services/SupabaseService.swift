@@ -73,6 +73,26 @@ enum HydraRuntime {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
     }
 
+    static var qaAutologinCredentials: (email: String, password: String)? {
+        #if DEBUG && targetEnvironment(simulator)
+        guard ProcessInfo.processInfo.environment["HYDRASCAN_SIMULATOR_AUTOLOGIN"] == "1" else {
+            return nil
+        }
+
+        let environment = ProcessInfo.processInfo.environment
+        guard
+            let email = environment["HYDRASCAN_QA_EMAIL"]?.nilIfBlank,
+            let password = environment["HYDRASCAN_QA_PASSWORD"]?.nilIfBlank
+        else {
+            return nil
+        }
+
+        return (email, password)
+        #else
+        return nil
+        #endif
+    }
+
     static var authCallbackURL: URL? {
         guard let bundleIdentifier = Bundle.main.bundleIdentifier, !bundleIdentifier.isEmpty else {
             return nil

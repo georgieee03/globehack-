@@ -52,8 +52,20 @@ final class AuthViewModel: ObservableObject {
 
     func restoreSession() async {
         guard authUser == nil, sessionContext == nil else { return }
+
         await loadAuthState { [self] in
             try await self.service.restoreSession()
+        }
+
+        guard authUser == nil, sessionContext == nil else { return }
+        guard let qaCredentials = HydraRuntime.qaAutologinCredentials else { return }
+
+        infoMessage = "Signing into the seeded QA client for simulator verification."
+        await loadAuthState { [self] in
+            try await self.service.signInWithPassword(
+                email: qaCredentials.email,
+                password: qaCredentials.password
+            )
         }
     }
 
