@@ -30,7 +30,7 @@ actor MockAuthService: AuthServiceProtocol {
     private var pendingMagicLinkEmail: String?
     private let supabaseService: SupabaseServiceProtocol
 
-    init(supabaseService: SupabaseServiceProtocol = MockSupabaseService.shared) {
+    init(supabaseService: SupabaseServiceProtocol) {
         self.supabaseService = supabaseService
     }
 

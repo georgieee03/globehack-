@@ -26,6 +26,30 @@
 		A20000000000000000000011 /* WellnessLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* WellnessLanguage.swift */; };
 		A20000000000000000000012 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* Extensions.swift */; };
 		A20000000000000000000013 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* SupabaseService.swift */; };
+		A20000000000000000000014 /* GamificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* GamificationService.swift */; };
+		A2000000000000000000002B /* OfflineCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* OfflineCacheService.swift */; };
+		A20000000000000000000015 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* HomeViewModel.swift */; };
+		A20000000000000000000016 /* IntakeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* IntakeViewModel.swift */; };
+		A20000000000000000000017 /* CaptureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* CaptureViewModel.swift */; };
+		A20000000000000000000018 /* FeedbackViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* FeedbackViewModel.swift */; };
+		A20000000000000000000019 /* StepProgressIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* StepProgressIndicator.swift */; };
+		A2000000000000000000001A /* EmojiScalePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001B /* EmojiScalePicker.swift */; };
+		A2000000000000000000001B /* BodyMapCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* BodyMapCanvas.swift */; };
+		A2000000000000000000001C /* RecoveryScoreGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001D /* RecoveryScoreGauge.swift */; };
+		A2000000000000000000001D /* TrendLineChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001E /* TrendLineChart.swift */; };
+		A2000000000000000000001E /* RecoveryScoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001F /* RecoveryScoreView.swift */; };
+		A2000000000000000000001F /* StreakView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* StreakView.swift */; };
+		A20000000000000000000020 /* BeforeAfterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000021 /* BeforeAfterView.swift */; };
+		A20000000000000000000021 /* BodyMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* BodyMapView.swift */; };
+		A20000000000000000000022 /* SignalEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000023 /* SignalEntryView.swift */; };
+		A20000000000000000000023 /* GoalPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000024 /* GoalPickerView.swift */; };
+		A20000000000000000000024 /* ActivityContextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000025 /* ActivityContextView.swift */; };
+		A20000000000000000000025 /* IntakeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000026 /* IntakeView.swift */; };
+		A20000000000000000000026 /* QuickPoseCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000027 /* QuickPoseCaptureView.swift */; };
+		A20000000000000000000027 /* ResultsSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000028 /* ResultsSummaryView.swift */; };
+		A20000000000000000000028 /* PostSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000029 /* PostSessionView.swift */; };
+		A20000000000000000000029 /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* CheckInView.swift */; };
+		A2000000000000000000002A /* CaptureExperienceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* CaptureExperienceView.swift */; };
 		B50000000000000000000001 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B30000000000000000000001 /* Supabase */; };
 		108CD0EE2F947D4A0031EB9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 108CD0EC2F947D4A0031EB9B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -53,6 +77,31 @@
 		A10000000000000000000012 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		A10000000000000000000013 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
+		A10000000000000000000015 /* GamificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamificationService.swift; sourceTree = "<group>"; };
+		A1000000000000000000002C /* OfflineCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCacheService.swift; sourceTree = "<group>"; };
+		A1000000000000000000002D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000016 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000017 /* IntakeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeViewModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000018 /* CaptureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureViewModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000019 /* FeedbackViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackViewModel.swift; sourceTree = "<group>"; };
+		A1000000000000000000001A /* StepProgressIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepProgressIndicator.swift; sourceTree = "<group>"; };
+		A1000000000000000000001B /* EmojiScalePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiScalePicker.swift; sourceTree = "<group>"; };
+		A1000000000000000000001C /* BodyMapCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMapCanvas.swift; sourceTree = "<group>"; };
+		A1000000000000000000001D /* RecoveryScoreGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryScoreGauge.swift; sourceTree = "<group>"; };
+		A1000000000000000000001E /* TrendLineChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendLineChart.swift; sourceTree = "<group>"; };
+		A1000000000000000000001F /* RecoveryScoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryScoreView.swift; sourceTree = "<group>"; };
+		A10000000000000000000020 /* StreakView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakView.swift; sourceTree = "<group>"; };
+		A10000000000000000000021 /* BeforeAfterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeforeAfterView.swift; sourceTree = "<group>"; };
+		A10000000000000000000022 /* BodyMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMapView.swift; sourceTree = "<group>"; };
+		A10000000000000000000023 /* SignalEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalEntryView.swift; sourceTree = "<group>"; };
+		A10000000000000000000024 /* GoalPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalPickerView.swift; sourceTree = "<group>"; };
+		A10000000000000000000025 /* ActivityContextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityContextView.swift; sourceTree = "<group>"; };
+		A10000000000000000000026 /* IntakeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeView.swift; sourceTree = "<group>"; };
+		A10000000000000000000027 /* QuickPoseCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPoseCaptureView.swift; sourceTree = "<group>"; };
+		A10000000000000000000028 /* ResultsSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsSummaryView.swift; sourceTree = "<group>"; };
+		A10000000000000000000029 /* PostSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostSessionView.swift; sourceTree = "<group>"; };
+		A1000000000000000000002A /* CheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInView.swift; sourceTree = "<group>"; };
+		A1000000000000000000002B /* CaptureExperienceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExperienceView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +144,7 @@
 		108CD0EF2F947D4A0031EB9B /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				A1000000000000000000002D /* Info.plist */,
 				A10000000000000000000014 /* Project.xcconfig */,
 			);
 			path = Config;
@@ -127,6 +177,8 @@
 			isa = PBXGroup;
 			children = (
 				A1000000000000000000000C /* AuthService.swift */,
+				A10000000000000000000015 /* GamificationService.swift */,
+				A1000000000000000000002C /* OfflineCacheService.swift */,
 				A10000000000000000000013 /* SupabaseService.swift */,
 			);
 			path = Services;
@@ -146,6 +198,10 @@
 			isa = PBXGroup;
 			children = (
 				A1000000000000000000000D /* AuthViewModel.swift */,
+				A10000000000000000000018 /* CaptureViewModel.swift */,
+				A10000000000000000000019 /* FeedbackViewModel.swift */,
+				A10000000000000000000016 /* HomeViewModel.swift */,
+				A10000000000000000000017 /* IntakeViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -162,6 +218,19 @@
 		108CD0E92F947D4A0031EB9B /* Client */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000025 /* ActivityContextView.swift */,
+				A10000000000000000000021 /* BeforeAfterView.swift */,
+				A10000000000000000000022 /* BodyMapView.swift */,
+				A1000000000000000000002B /* CaptureExperienceView.swift */,
+				A1000000000000000000002A /* CheckInView.swift */,
+				A10000000000000000000024 /* GoalPickerView.swift */,
+				A10000000000000000000026 /* IntakeView.swift */,
+				A10000000000000000000029 /* PostSessionView.swift */,
+				A10000000000000000000027 /* QuickPoseCaptureView.swift */,
+				A1000000000000000000001F /* RecoveryScoreView.swift */,
+				A10000000000000000000028 /* ResultsSummaryView.swift */,
+				A10000000000000000000023 /* SignalEntryView.swift */,
+				A10000000000000000000020 /* StreakView.swift */,
 			);
 			path = Client;
 			sourceTree = "<group>";
@@ -169,6 +238,11 @@
 		108CD0EA2F947D4A0031EB9B /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				A1000000000000000000001C /* BodyMapCanvas.swift */,
+				A1000000000000000000001B /* EmojiScalePicker.swift */,
+				A1000000000000000000001D /* RecoveryScoreGauge.swift */,
+				A1000000000000000000001A /* StepProgressIndicator.swift */,
+				A1000000000000000000001E /* TrendLineChart.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -277,20 +351,44 @@
 			buildActionMask = 2147483647;
 			files = (
 				A20000000000000000000006 /* Assessment.swift in Sources */,
+				A20000000000000000000024 /* ActivityContextView.swift in Sources */,
+				A20000000000000000000020 /* BeforeAfterView.swift in Sources */,
+				A2000000000000000000001B /* BodyMapCanvas.swift in Sources */,
+				A20000000000000000000021 /* BodyMapView.swift in Sources */,
+				A20000000000000000000017 /* CaptureViewModel.swift in Sources */,
+				A2000000000000000000002A /* CaptureExperienceView.swift in Sources */,
+				A20000000000000000000029 /* CheckInView.swift in Sources */,
 				A20000000000000000000004 /* ClientProfile.swift in Sources */,
 				A20000000000000000000002 /* ContentView.swift in Sources */,
 				A20000000000000000000009 /* DailyCheckin.swift in Sources */,
+				A2000000000000000000001A /* EmojiScalePicker.swift in Sources */,
 				A20000000000000000000012 /* Extensions.swift in Sources */,
+				A20000000000000000000018 /* FeedbackViewModel.swift in Sources */,
+				A20000000000000000000014 /* GamificationService.swift in Sources */,
 				A2000000000000000000000B /* GamificationState.swift in Sources */,
+				A20000000000000000000023 /* GoalPickerView.swift in Sources */,
+				A20000000000000000000015 /* HomeViewModel.swift in Sources */,
+				A20000000000000000000025 /* IntakeView.swift in Sources */,
+				A20000000000000000000016 /* IntakeViewModel.swift in Sources */,
 				A2000000000000000000000C /* AuthService.swift in Sources */,
 				A2000000000000000000000D /* AuthViewModel.swift in Sources */,
 				A20000000000000000000001 /* HydraScanApp.swift in Sources */,
 				A2000000000000000000000E /* LoginView.swift in Sources */,
 				A20000000000000000000008 /* Outcome.swift in Sources */,
 				A2000000000000000000000F /* OnboardingView.swift in Sources */,
+				A2000000000000000000002B /* OfflineCacheService.swift in Sources */,
+				A20000000000000000000028 /* PostSessionView.swift in Sources */,
+				A20000000000000000000026 /* QuickPoseCaptureView.swift in Sources */,
 				A20000000000000000000005 /* QuickPoseResult.swift in Sources */,
 				A20000000000000000000007 /* RecoveryMap.swift in Sources */,
+				A2000000000000000000001C /* RecoveryScoreGauge.swift in Sources */,
 				A2000000000000000000000A /* RecoveryScore.swift in Sources */,
+				A2000000000000000000001E /* RecoveryScoreView.swift in Sources */,
+				A20000000000000000000027 /* ResultsSummaryView.swift in Sources */,
+				A20000000000000000000022 /* SignalEntryView.swift in Sources */,
+				A20000000000000000000019 /* StepProgressIndicator.swift in Sources */,
+				A2000000000000000000001F /* StreakView.swift in Sources */,
+				A2000000000000000000001D /* TrendLineChart.swift in Sources */,
 				A20000000000000000000003 /* User.swift in Sources */,
 				A20000000000000000000010 /* Constants.swift in Sources */,
 				A20000000000000000000011 /* WellnessLanguage.swift in Sources */,
@@ -478,12 +576,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HydraScan/Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -510,12 +604,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HydraScan/Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

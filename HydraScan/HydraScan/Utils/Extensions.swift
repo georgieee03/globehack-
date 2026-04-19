@@ -24,6 +24,12 @@ extension Date {
     }()
 }
 
+extension String {
+    var nilIfEmpty: String? {
+        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
+    }
+}
+
 extension SIMD3 where Scalar == Double {
     var normalizedOrZero: SIMD3<Double> {
         let length = simd_length(self)

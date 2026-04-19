@@ -1,3 +1,5 @@
+FORWARD_SLASH = /
+
 SUPABASE_URL = Not configured
 SUPABASE_ANON_KEY =
 
