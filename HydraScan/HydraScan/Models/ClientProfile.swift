@@ -139,6 +139,25 @@ struct RecoverySignal: Identifiable, Codable, Hashable {
     }
 }
 
+enum TrendClassification: String, Codable, CaseIterable, Hashable {
+    case improving
+    case plateau
+    case regressing
+    case insufficientData = "insufficient_data"
+}
+
+struct NextVisitSignal: Codable, Hashable {
+    var recommendedReturnDays: Int
+    var urgency: String
+    var rationale: String
+
+    enum CodingKeys: String, CodingKey {
+        case recommendedReturnDays = "recommended_return_days"
+        case urgency
+        case rationale
+    }
+}
+
 struct ClientProfile: Identifiable, Codable, Hashable {
     var id: UUID
     var userID: UUID
@@ -153,8 +172,72 @@ struct ClientProfile: Identifiable, Codable, Hashable {
     var wearableStrain: Double?
     var wearableSleepScore: Double?
     var wearableLastSync: Date?
+    var trendClassification: TrendClassification
+    var needsAttention: Bool
+    var nextVisitSignal: NextVisitSignal?
     var createdAt: Date
     var updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userID = "user_id"
+        case clinicID = "clinic_id"
+        case primaryRegions = "primary_regions"
+        case recoverySignalsByRegion = "recovery_signals"
+        case goals
+        case activityContext = "activity_context"
+        case sensitivities
+        case notes
+        case wearableHRV = "wearable_hrv"
+        case wearableStrain = "wearable_strain"
+        case wearableSleepScore = "wearable_sleep_score"
+        case wearableLastSync = "wearable_last_sync"
+        case trendClassification = "trend_classification"
+        case needsAttention = "needs_attention"
+        case nextVisitSignal = "next_visit_signal"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
+    init(
+        id: UUID,
+        userID: UUID,
+        clinicID: UUID?,
+        primaryRegions: [BodyRegion],
+        recoverySignalsByRegion: [String: RecoverySignalValue],
+        goals: [RecoveryGoal],
+        activityContext: String?,
+        sensitivities: [String],
+        notes: String?,
+        wearableHRV: Double?,
+        wearableStrain: Double?,
+        wearableSleepScore: Double?,
+        wearableLastSync: Date?,
+        trendClassification: TrendClassification = .insufficientData,
+        needsAttention: Bool = false,
+        nextVisitSignal: NextVisitSignal? = nil,
+        createdAt: Date,
+        updatedAt: Date
+    ) {
+        self.id = id
+        self.userID = userID
+        self.clinicID = clinicID
+        self.primaryRegions = primaryRegions
+        self.recoverySignalsByRegion = recoverySignalsByRegion
+        self.goals = goals
+        self.activityContext = activityContext
+        self.sensitivities = sensitivities
+        self.notes = notes
+        self.wearableHRV = wearableHRV
+        self.wearableStrain = wearableStrain
+        self.wearableSleepScore = wearableSleepScore
+        self.wearableLastSync = wearableLastSync
+        self.trendClassification = trendClassification
+        self.needsAttention = needsAttention
+        self.nextVisitSignal = nextVisitSignal
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
 
     var recoverySignals: [RecoverySignal] {
         primaryRegions.compactMap { region in
@@ -186,6 +269,9 @@ struct ClientProfile: Identifiable, Codable, Hashable {
         wearableStrain: nil,
         wearableSleepScore: nil,
         wearableLastSync: nil,
+        trendClassification: .insufficientData,
+        needsAttention: false,
+        nextVisitSignal: nil,
         createdAt: Date(),
         updatedAt: Date()
     )
@@ -207,6 +293,13 @@ struct ClientProfile: Identifiable, Codable, Hashable {
         wearableStrain: 31,
         wearableSleepScore: 82,
         wearableLastSync: Date(),
+        trendClassification: .improving,
+        needsAttention: false,
+        nextVisitSignal: NextVisitSignal(
+            recommendedReturnDays: 7,
+            urgency: "routine",
+            rationale: "Recovery momentum looks steady."
+        ),
         createdAt: Date(),
         updatedAt: Date()
     )

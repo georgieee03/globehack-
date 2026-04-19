@@ -11,6 +11,11 @@ struct HydraScanApp: App {
                 .task {
                     await authViewModel.restoreSession()
                 }
+                .onOpenURL { url in
+                    Task {
+                        await authViewModel.handleOpenURL(url)
+                    }
+                }
         }
     }
 }

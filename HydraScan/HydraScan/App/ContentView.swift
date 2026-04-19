@@ -6,20 +6,42 @@ struct ContentView: View {
     @State private var homeRefreshToken = UUID()
 
     private let service: SupabaseServiceProtocol = MockSupabaseService.shared
+    private let debugDestination = ProcessInfo.processInfo.arguments.contains("--quickpose-lab")
 
     var body: some View {
         Group {
-            if !authViewModel.isAuthenticated {
-                LoginView(viewModel: authViewModel)
-            } else if authViewModel.shouldShowOnboarding {
-                OnboardingView(viewModel: authViewModel)
-            } else if let currentUser = authViewModel.currentUser {
-                mainTabs(for: currentUser)
+#if DEBUG
+            if debugDestination {
+#if canImport(QuickPoseCore) && canImport(QuickPoseSwiftUI)
+                NavigationStack {
+                    QuickPoseVerificationView()
+                }
+#else
+                Text("QuickPose Verification Lab is unavailable in this build.")
+#endif
             } else {
-                ProgressView("Loading HydraScan…")
+                authenticatedContent
             }
+#else
+            authenticatedContent
+#endif
         }
         .animation(.easeInOut(duration: 0.2), value: authViewModel.isAuthenticated)
+    }
+
+    @ViewBuilder
+    private var authenticatedContent: some View {
+        if !authViewModel.isAuthenticated {
+            LoginView(viewModel: authViewModel)
+        } else if authViewModel.shouldShowUnsupportedRole {
+            UnsupportedRoleView(viewModel: authViewModel)
+        } else if authViewModel.shouldShowOnboarding {
+            OnboardingView(viewModel: authViewModel)
+        } else if authViewModel.isClientReady, let currentUser = authViewModel.currentUser {
+            mainTabs(for: currentUser)
+        } else {
+            ProgressView("Loading HydraScan…")
+        }
     }
 
     @ViewBuilder
@@ -169,6 +191,10 @@ private struct HomeTabView: View {
             .navigationTitle("Recovery")
             .task(id: refreshToken) {
                 await viewModel.load()
+                viewModel.startSessionAwarenessStream()
+            }
+            .onDisappear {
+                viewModel.stopSessionAwarenessStream()
             }
         }
     }
@@ -183,7 +209,12 @@ private struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(viewModel.currentUser?.fullName ?? "HydraScan Client")
                         .font(.title.weight(.semibold))
-                    Text(viewModel.currentUser?.email ?? "Signed in with demo auth")
+                    Text(viewModel.currentUser?.email ?? viewModel.authUser?.email ?? "Signed in with HydraScan auth")
+                        .foregroundStyle(.secondary)
+                }
+
+                if let clinicName = viewModel.sessionContext?.clinic?.name {
+                    Label(clinicName, systemImage: "cross.case")
                         .foregroundStyle(.secondary)
                 }
 
@@ -197,6 +228,13 @@ private struct ProfileView: View {
                         .foregroundStyle(.secondary)
                 }
 
+#if canImport(QuickPoseCore) && canImport(QuickPoseSwiftUI)
+                NavigationLink("QuickPose Verification Lab") {
+                    QuickPoseVerificationView()
+                }
+                .buttonStyle(.bordered)
+#endif
+
                 Button("Sign Out") {
                     Task {
                         await viewModel.signOut()
@@ -208,6 +246,32 @@ private struct ProfileView: View {
             }
             .padding(24)
             .navigationTitle("Profile")
+        }
+    }
+}
+
+private struct UnsupportedRoleView: View {
+    @ObservedObject var viewModel: AuthViewModel
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Client Build Only")
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                Text(viewModel.unsupportedRoleMessage)
+                    .foregroundStyle(.secondary)
+
+                Button("Sign Out") {
+                    Task {
+                        await viewModel.signOut()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Spacer()
+            }
+            .padding(24)
+            .navigationTitle("HydraScan")
         }
     }
 }

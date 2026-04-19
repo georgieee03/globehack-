@@ -12,6 +12,19 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>HydraScan Auth Callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
@@ -51,5 +64,13 @@
 	<string>$(SUPABASE_URL)</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>QUICKPOSE_SDK_KEY</key>
+	<string>$(QUICKPOSE_SDK_KEY)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>HydraScan uses the camera to analyze posture and movement during guided capture.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>HydraScan reads Heart Rate Variability, sleep, and activity context to support your recovery timeline.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>HydraScan may write recovery-related wellness summaries back to Health when you enable that connection.</string>
 </dict>
 </plist>

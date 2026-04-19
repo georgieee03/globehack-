@@ -47,7 +47,7 @@ export async function insertRecoveryGraphPoints(
   clinicId: string,
   clientId: string,
   sessionId: string,
-  bodyRegion: BodyRegion,
+  bodyRegion: BodyRegion | "overall",
   metrics: Array<{ metricType: string; value: number }>,
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -63,7 +63,10 @@ export async function insertRecoveryGraphPoints(
   }));
 
   if (rows.length > 0) {
-    await supabase.from("recovery_graph").insert(rows);
+    const { error } = await supabase.from("recovery_graph").insert(rows);
+    if (error) {
+      throw new Error(`Failed to insert recovery graph points: ${error.message}`);
+    }
   }
 }
 
@@ -113,7 +116,10 @@ export async function insertCheckinGraphPoints(
     });
   }
 
-  await supabase.from("recovery_graph").insert(rows);
+  const { error } = await supabase.from("recovery_graph").insert(rows);
+  if (error) {
+    throw new Error(`Failed to insert check-in recovery graph points: ${error.message}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +249,7 @@ export async function recomputeAndInsertRecoveryScore(
   const result = computeRecoveryScore(input);
 
   // Insert recovery score into recovery_graph
-  await supabase.from("recovery_graph").insert({
+  const { error } = await supabase.from("recovery_graph").insert({
     client_id: clientId,
     clinic_id: clinicId,
     body_region: "overall",
@@ -253,6 +259,10 @@ export async function recomputeAndInsertRecoveryScore(
     source_id: null,
     recorded_at: new Date().toISOString(),
   });
+
+  if (error) {
+    throw new Error(`Failed to insert recovery score graph point: ${error.message}`);
+  }
 
   return result.score;
 }

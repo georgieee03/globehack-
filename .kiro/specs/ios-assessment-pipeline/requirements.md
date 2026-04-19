@@ -30,7 +30,7 @@ The iOS assessment pipeline is the client-facing half of HydraScan. It handles a
 - **Recovery_Score**: A single number (0–100) computed from recent session outcomes, daily check-in data, wearable context, and session adherence, representing the client's recovery trajectory.
 - **Daily_Check_In**: A between-visit feedback entry where the client reports overall feeling (1–5), target region status, and recent activity.
 - **Continuity_Features**: Between-visit engagement features including recovery streaks, progress visualization, and gamification elements (XP, levels, visual before/after).
-- **Wearable_Sync**: Optional integration with Apple Watch data (HRV, strain, sleep score) via HealthKit.
+- **Wearable_Sync**: Optional i/Users/sri/Documents/globehack-/.kiro/specs/backend-foundationntegration with Apple Watch data (HRV, strain, sleep score) via HealthKit.
 - **Supabase_Client**: The Supabase Swift client library used for authentication, database operations, and real-time subscriptions from the iOS_App.
 
 ## Requirements

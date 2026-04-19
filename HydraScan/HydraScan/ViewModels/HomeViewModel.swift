@@ -8,6 +8,7 @@ final class HomeViewModel: ObservableObject {
     @Published var clientProfile = ClientProfile.empty
     @Published var assessments: [Assessment] = []
     @Published var latestOutcome: Outcome?
+    @Published var sessionAwareness = HydraSessionAwareness(activeSession: nil, latestSession: nil, updatedAt: Date())
     @Published var errorMessage: String?
     @Published var syncStatusMessage: String?
     @Published var isLoading = false
@@ -18,17 +19,22 @@ final class HomeViewModel: ObservableObject {
     private let service: SupabaseServiceProtocol
     private let gamificationService: GamificationServiceProtocol
     private let offlineCacheService: OfflineCacheServiceProtocol
+    private var sessionAwarenessTask: Task<Void, Never>?
 
     init(
         user: HydraUser,
         service: SupabaseServiceProtocol,
-        gamificationService: GamificationServiceProtocol = GamificationService(),
-        offlineCacheService: OfflineCacheServiceProtocol = OfflineCacheService.shared
+        gamificationService: GamificationServiceProtocol? = nil,
+        offlineCacheService: OfflineCacheServiceProtocol? = nil
     ) {
         self.user = user
         self.service = service
-        self.gamificationService = gamificationService
-        self.offlineCacheService = offlineCacheService
+        self.gamificationService = gamificationService ?? GamificationService()
+        self.offlineCacheService = offlineCacheService ?? OfflineCacheService.shared
+    }
+
+    deinit {
+        sessionAwarenessTask?.cancel()
     }
 
     var clientName: String {
@@ -40,7 +46,7 @@ final class HomeViewModel: ObservableObject {
     }
 
     var hasActiveSession: Bool {
-        latestOutcome == nil && assessments.first != nil
+        sessionAwareness.activeSession != nil
     }
 
     var primaryRegionsSummary: String {
@@ -74,6 +80,7 @@ final class HomeViewModel: ObservableObject {
             async let allAssessments = service.fetchAssessments(clientID: user.id)
             async let outcome = service.fetchLatestOutcome(clientID: user.id)
             async let recentCheckins = service.fetchRecentCheckins(clientID: user.id, limit: 30)
+            async let awareness = service.fetchSessionAwareness(clientID: user.id)
 
             let resolvedProfile = try await profile
             let resolvedAssessments = try await allAssessments
@@ -81,10 +88,12 @@ final class HomeViewModel: ObservableObject {
             let resolvedCheckins = try await recentCheckins
             let baseScore = try await score
             let resolvedTrend = try await trend
+            let resolvedAwareness = try await awareness
 
             clientProfile = resolvedProfile
             assessments = resolvedAssessments
             latestOutcome = resolvedOutcome
+            sessionAwareness = resolvedAwareness
             recoveryScore = RecoveryScore(
                 current: baseScore.current,
                 deltaFromLastWeek: baseScore.deltaFromLastWeek,
@@ -96,13 +105,52 @@ final class HomeViewModel: ObservableObject {
                 outcomes: resolvedOutcome.map { [$0] } ?? [],
                 checkins: resolvedCheckins
             )
-            activeSessionBanner = hasActiveSession
-                ? "You have a recovery session in progress. Finish feedback when you are ready."
-                : "Ready for your next guided recovery session."
+            if let activeSession = resolvedAwareness.activeSession {
+                activeSessionBanner = activeSession.status == .paused
+                    ? "Your Hydrawav session is paused. Resume with your practitioner when ready."
+                    : "You have an active Hydrawav session in progress."
+            } else if let latestSession = resolvedAwareness.latestSession,
+                      latestSession.status == .completed,
+                      resolvedOutcome?.sessionID != latestSession.id {
+                activeSessionBanner = "Your latest session is complete. Share feedback to update your Recovery Score."
+            } else {
+                activeSessionBanner = "Ready for your next guided recovery session."
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isLoading = false
+    }
+
+    func startSessionAwarenessStream() {
+        sessionAwarenessTask?.cancel()
+        sessionAwarenessTask = Task {
+            do {
+                for try await awareness in service.sessionAwarenessStream(clientID: user.id) {
+                    guard !Task.isCancelled else { return }
+                    sessionAwareness = awareness
+
+                    if let activeSession = awareness.activeSession {
+                        activeSessionBanner = activeSession.status == .paused
+                            ? "Your Hydrawav session is paused. Resume with your practitioner when ready."
+                            : "You have an active Hydrawav session in progress."
+                    } else if let latestSession = awareness.latestSession,
+                              latestSession.status == .completed,
+                              latestOutcome?.sessionID != latestSession.id {
+                        activeSessionBanner = "Your latest session is complete. Share feedback to update your Recovery Score."
+                    } else {
+                        activeSessionBanner = "Ready for your next guided recovery session."
+                    }
+                }
+            } catch {
+                // Keep the most recent loaded state if realtime drops.
+            }
+        }
+    }
+
+    func stopSessionAwarenessStream() {
+        sessionAwarenessTask?.cancel()
+        sessionAwarenessTask = nil
     }
 }

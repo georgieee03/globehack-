@@ -30,7 +30,6 @@ struct PostSessionView: View {
                     Text("Yes").tag(RepeatIntent.yes)
                     Text("Maybe").tag(RepeatIntent.maybe)
                     Text("No").tag(RepeatIntent.no)
-                    Text("Try Different").tag(RepeatIntent.noTryDifferent)
                 }
                 .pickerStyle(.segmented)
 

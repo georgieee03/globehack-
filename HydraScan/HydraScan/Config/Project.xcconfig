@@ -2,6 +2,7 @@ FORWARD_SLASH = /
 
 SUPABASE_URL = Not configured
 SUPABASE_ANON_KEY =
+QUICKPOSE_SDK_KEY =
 
 #include? "LocalSecrets.xcconfig"
 

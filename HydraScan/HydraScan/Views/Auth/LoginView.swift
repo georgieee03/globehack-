@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -9,21 +10,19 @@ struct LoginView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("HydraScan")
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Sign in to start your intake, capture your movement session, and keep your recovery loop moving.")
+                    Text("Sign in to complete your intake, capture movement, and keep your recovery loop connected to your clinic.")
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(spacing: 16) {
-                    Button {
-                        Task {
-                            await viewModel.signInWithApple()
-                        }
-                    } label: {
-                        Label("Continue with Apple", systemImage: "applelogo")
-                            .frame(maxWidth: .infinity)
+                    SignInWithAppleButton(.continue) { request in
+                        request.requestedScopes = [.fullName, .email]
+                    } onCompletion: { result in
+                        handleAppleSignIn(result)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Or use a magic link")
@@ -69,6 +68,33 @@ struct LoginView: View {
                                 .fill(Color(.systemBackground))
                         )
                 }
+            }
+        }
+    }
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case let .failure(error):
+            viewModel.errorMessage = error.localizedDescription
+        case let .success(authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                viewModel.errorMessage = "Apple Sign-In returned an unexpected credential."
+                return
+            }
+
+            guard
+                let identityTokenData = credential.identityToken,
+                let identityToken = String(data: identityTokenData, encoding: .utf8)
+            else {
+                viewModel.errorMessage = AuthServiceError.missingIdentityToken.localizedDescription
+                return
+            }
+
+            Task {
+                await viewModel.signInWithApple(
+                    idToken: identityToken,
+                    fullName: credential.fullName?.formatted()
+                )
             }
         }
     }

@@ -38,6 +38,7 @@ enum HydraScanConstants {
     static let supabaseURLString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? "Not configured"
     static let supabaseURL = URL(string: supabaseURLString)
     static let supabaseAnonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
+    static let quickPoseSDKKey = Bundle.main.object(forInfoDictionaryKey: "QUICKPOSE_SDK_KEY") as? String ?? ""
 
     static let captureSteps: [CaptureStepDefinition] = [
         CaptureStepDefinition(step: .standingFront, title: "Standing Front", instruction: "Stand tall facing the camera.", durationSeconds: 5),

@@ -30,6 +30,31 @@ interface ActionRequest {
   limit?: number;
 }
 
+async function resolveClientProfileIdForUser(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  clinicId: string,
+) {
+  const { data: clientProfile, error } = await supabase
+    .from("client_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("clinic_id", clinicId)
+    .maybeSingle();
+
+  if (error) {
+    throw new HttpError(500, "Failed to load client profile for authenticated user", {
+      detail: error.message,
+    });
+  }
+
+  if (!clientProfile?.id) {
+    throw new HttpError(403, "This client account does not have a client profile in the current clinic");
+  }
+
+  return clientProfile.id as string;
+}
+
 // ---------------------------------------------------------------------------
 // LLM Explanation helper (inline call with 3s timeout + fallback)
 // ---------------------------------------------------------------------------
@@ -236,20 +261,40 @@ Deno.serve(async (req: Request) => {
   const supabase = createServiceRoleClient();
 
   try {
-    // Authenticate and authorize (admin or practitioner only)
+    // Authenticate and authorize
     const ctx = await requireAuthenticatedUser(req, supabase);
-    requireRole(ctx, ["admin", "practitioner"]);
 
     // Parse request body
     const body: ActionRequest = await req.json().catch(() => {
       throw new HttpError(400, "Request body must be valid JSON");
     });
 
-    const { action, client_id, assessment_id, body_region, limit } = body;
+    const { action, assessment_id, body_region, limit } = body;
+    let effectiveClientId = body.client_id;
+
+    if (action === "recommend") {
+      requireRole(ctx, ["admin", "practitioner"]);
+    } else if (["recovery-map", "recovery-score", "recovery-graph"].includes(action)) {
+      if (ctx.role === "client") {
+        const ownClientProfileId = await resolveClientProfileIdForUser(
+          supabase,
+          ctx.user.id,
+          ctx.clinicId,
+        );
+
+        if (effectiveClientId && effectiveClientId !== ownClientProfileId) {
+          throw new HttpError(403, "Clients can only access their own recovery data");
+        }
+
+        effectiveClientId = ownClientProfileId;
+      } else {
+        requireRole(ctx, ["admin", "practitioner"]);
+      }
+    }
 
     switch (action) {
       case "recommend": {
-        if (!client_id || !assessment_id) {
+        if (!effectiveClientId || !assessment_id) {
           throw new HttpError(
             400,
             "client_id and assessment_id are required for recommend action",
@@ -258,21 +303,21 @@ Deno.serve(async (req: Request) => {
         const result = await handleRecommend(
           supabase,
           ctx.clinicId,
-          client_id,
+          effectiveClientId,
           assessment_id,
         );
         return jsonResponse(req, { success: true, action, data: result });
       }
 
       case "recovery-map": {
-        if (!client_id || !assessment_id) {
+        if (!effectiveClientId || !assessment_id) {
           throw new HttpError(
             400,
             "client_id and assessment_id are required for recovery-map action",
           );
         }
         const recoveryMap = await generateRecoveryMap(
-          client_id,
+          effectiveClientId,
           assessment_id,
           supabase,
         );
@@ -284,7 +329,7 @@ Deno.serve(async (req: Request) => {
       }
 
       case "recovery-score": {
-        if (!client_id) {
+        if (!effectiveClientId) {
           throw new HttpError(
             400,
             "client_id is required for recovery-score action",
@@ -293,7 +338,7 @@ Deno.serve(async (req: Request) => {
         const score = await recomputeAndInsertRecoveryScore(
           supabase,
           ctx.clinicId,
-          client_id,
+          effectiveClientId,
         );
         return jsonResponse(req, {
           success: true,
@@ -303,7 +348,7 @@ Deno.serve(async (req: Request) => {
       }
 
       case "recovery-graph": {
-        if (!client_id || !body_region) {
+        if (!effectiveClientId || !body_region) {
           throw new HttpError(
             400,
             "client_id and body_region are required for recovery-graph action",
@@ -311,7 +356,7 @@ Deno.serve(async (req: Request) => {
         }
         const dataPoints = await queryRecoveryGraph(
           supabase,
-          client_id,
+          effectiveClientId,
           body_region,
           limit ?? 30,
         );

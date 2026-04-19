@@ -119,7 +119,7 @@ final class CaptureViewModel: ObservableObject {
             clientID: user.id,
             clinicID: user.clinicID,
             practitionerID: nil,
-            assessmentType: .intake,
+            assessmentType: .preSession,
             quickPoseData: QuickPoseResult.empty,
             romValues: mockROMValues,
             asymmetryScores: mockAsymmetryScores,
@@ -172,6 +172,7 @@ final class CaptureViewModel: ObservableObject {
                 severity: max(1, min(10, signal.severity - 1)),
                 signalType: signal.type,
                 romDelta: Double(Int.random(in: 3...11)),
+                trend: nil,
                 asymmetryFlag: signal.severity >= 6,
                 compensationHint: signal.severity >= 6 ? "Move a little slower through this region and focus on smoother range." : nil
             )
@@ -179,11 +180,12 @@ final class CaptureViewModel: ObservableObject {
 
         let priorSessionSummary = PriorSessionSummary(
             date: Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date(),
-            configurationSummary: "Mobility reset and supported shoulder flow",
-            outcomeRating: "Felt easier afterward"
+            configSummary: "Mobility reset and supported shoulder flow",
+            outcomeRating: 78
         )
 
         return RecoveryMap(
+            clientID: profile.id,
             highlightedRegions: regions.sorted { $0.region.displayLabel < $1.region.displayLabel },
             wearableContext: WearableContext(
                 hrv: profile.wearableHRV,
