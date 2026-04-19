@@ -1,7 +1,7 @@
 import Foundation
 
-#if canImport(Supabase)
-import Supabase
+#if canImport(InsForge)
+import InsForge
 #endif
 
 struct AuthStateSnapshot: Equatable {
@@ -42,19 +42,19 @@ enum AuthServiceError: LocalizedError {
 
 @MainActor
 final class MockAuthService: AuthServiceProtocol {
-    private let supabaseService: SupabaseServiceProtocol
+    private let insforgeService: InsforgeServiceProtocol
     private let liveService: LiveAuthService?
     private var cachedAuthUser: HydraAuthUser?
     private var cachedContext: HydraSessionContext?
     private var pendingMagicLinkEmail: String?
 
     init(
-        supabaseService: SupabaseServiceProtocol,
+        insforgeService: InsforgeServiceProtocol,
         useLiveServices: Bool? = nil
     ) {
-        self.supabaseService = supabaseService
+        self.insforgeService = insforgeService
         if useLiveServices ?? HydraRuntime.shouldUseLiveServices {
-            liveService = try? LiveAuthService(supabaseService: supabaseService)
+            liveService = try? LiveAuthService(insforgeService: insforgeService)
         } else {
             liveService = nil
         }
@@ -182,22 +182,22 @@ final class MockAuthService: AuthServiceProtocol {
         cachedAuthUser = nil
         cachedContext = nil
         pendingMagicLinkEmail = nil
-        await supabaseService.resetSessionContext()
+        await insforgeService.resetSessionContext()
     }
 }
 
-#if canImport(Supabase)
+#if canImport(InsForge)
 @MainActor
 final class LiveAuthService: AuthServiceProtocol {
-    private let supabaseService: SupabaseServiceProtocol
-    private let core: HydraSupabaseCore
+    private let insforgeService: InsforgeServiceProtocol
+    private let core: HydraInsforgeCore
 
-    init(supabaseService: SupabaseServiceProtocol) throws {
-        guard let core = HydraSupabaseCore.shared else {
-            throw AuthServiceError.unavailable("Supabase is unavailable in this build.")
+    init(insforgeService: InsforgeServiceProtocol) throws {
+        guard let core = HydraInsforgeCore.shared else {
+            throw AuthServiceError.unavailable("InsForge is unavailable in this build.")
         }
 
-        self.supabaseService = supabaseService
+        self.insforgeService = insforgeService
         self.core = core
     }
 
@@ -238,7 +238,7 @@ final class LiveAuthService: AuthServiceProtocol {
         }
 
         guard let callbackURL = HydraRuntime.authCallbackURL else {
-            throw SupabaseServiceError.missingCallbackConfiguration
+            throw InsforgeServiceError.missingCallbackConfiguration
         }
 
         try await core.client.auth.signInWithOTP(
@@ -262,7 +262,7 @@ final class LiveAuthService: AuthServiceProtocol {
 
     func signOut() async {
         try? await core.client.auth.signOut()
-        await supabaseService.resetSessionContext()
+        await insforgeService.resetSessionContext()
     }
 
     private func loadCurrentSnapshot(allowProvisioningRetry: Bool) async throws -> AuthStateSnapshot {
@@ -274,7 +274,7 @@ final class LiveAuthService: AuthServiceProtocol {
             let session = try await core.client.auth.session
             return try await buildSnapshot(from: session.user, allowProvisioningRetry: allowProvisioningRetry)
         } catch {
-            await supabaseService.resetSessionContext()
+            await insforgeService.resetSessionContext()
             return .empty
         }
     }
@@ -285,8 +285,8 @@ final class LiveAuthService: AuthServiceProtocol {
         do {
             let context = try await core.loadSessionContext(from: authUser, allowProvisioningRetry: allowProvisioningRetry)
             return AuthStateSnapshot(authUser: context.authUser, sessionContext: context)
-        } catch SupabaseServiceError.incompleteOnboarding {
-            await supabaseService.resetSessionContext()
+        } catch InsforgeServiceError.incompleteOnboarding {
+            await insforgeService.resetSessionContext()
             return AuthStateSnapshot(authUser: fallbackAuthUser, sessionContext: nil)
         } catch {
             throw error

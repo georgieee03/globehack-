@@ -16,14 +16,14 @@ final class HomeViewModel: ObservableObject {
 
     let user: HydraUser
 
-    private let service: SupabaseServiceProtocol
+    private let service: InsforgeServiceProtocol
     private let gamificationService: GamificationServiceProtocol
     private let offlineCacheService: OfflineCacheServiceProtocol
     private var sessionAwarenessTask: Task<Void, Never>?
 
     init(
         user: HydraUser,
-        service: SupabaseServiceProtocol,
+        service: InsforgeServiceProtocol,
         gamificationService: GamificationServiceProtocol? = nil,
         offlineCacheService: OfflineCacheServiceProtocol? = nil
     ) {

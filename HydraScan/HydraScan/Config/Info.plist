@@ -60,10 +60,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>SUPABASE_URL</key>
-	<string>$(SUPABASE_URL)</string>
-	<key>SUPABASE_ANON_KEY</key>
-	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>INSFORGE_URL</key>
+	<string>$(INSFORGE_URL)</string>
+	<key>INSFORGE_ANON_KEY</key>
+	<string>$(INSFORGE_ANON_KEY)</string>
 	<key>QUICKPOSE_SDK_KEY</key>
 	<string>$(QUICKPOSE_SDK_KEY)</string>
 	<key>NSCameraUsageDescription</key>

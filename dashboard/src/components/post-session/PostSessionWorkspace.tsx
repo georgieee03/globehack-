@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AssessmentRecord, ClientProfileRecord, SessionRecord } from "@hydrascan/shared";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 import { formatConfidence } from "@/lib/formatters";
 import { RetestComparison } from "./RetestComparison";
 import { SessionNotesEditor } from "./SessionNotesEditor";
@@ -13,7 +13,7 @@ interface PostSessionWorkspaceProps {
 }
 
 export function PostSessionWorkspace({ clientId }: PostSessionWorkspaceProps) {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
@@ -31,7 +31,7 @@ export function PostSessionWorkspace({ clientId }: PostSessionWorkspaceProps) {
       setLoading(true);
       setErrorMessage(null);
 
-      const { data: profile, error: profileError } = await supabase.from("client_profiles").select("*").eq("id", clientId).maybeSingle();
+      const { data: profile, error: profileError } = await insforge.from("client_profiles").select("*").eq("id", clientId).maybeSingle();
       if (cancelled) return;
       if (profileError) {
         setErrorMessage(profileError.message);
@@ -41,8 +41,8 @@ export function PostSessionWorkspace({ clientId }: PostSessionWorkspaceProps) {
       setClientProfile(profile as ClientProfileRecord | null);
 
       const sessionQuery = sessionId
-        ? supabase.from("sessions").select("*").eq("id", sessionId).maybeSingle()
-        : supabase.from("sessions").select("*").eq("client_id", clientId).eq("status", "completed").order("completed_at", { ascending: false }).limit(1).maybeSingle();
+        ? insforge.from("sessions").select("*").eq("id", sessionId).maybeSingle()
+        : insforge.from("sessions").select("*").eq("client_id", clientId).eq("status", "completed").order("completed_at", { ascending: false }).limit(1).maybeSingle();
 
       const { data: sessionRow, error: sessionError } = await sessionQuery;
       if (cancelled) return;
@@ -56,7 +56,7 @@ export function PostSessionWorkspace({ clientId }: PostSessionWorkspaceProps) {
       setSession(currentSession);
 
       if (currentSession?.assessment_id) {
-        const { data: assessmentRow } = await supabase.from("assessments").select("*").eq("id", currentSession.assessment_id).maybeSingle();
+        const { data: assessmentRow } = await insforge.from("assessments").select("*").eq("id", currentSession.assessment_id).maybeSingle();
         if (!cancelled) {
           setAssessment(assessmentRow as AssessmentRecord | null);
         }
@@ -72,7 +72,7 @@ export function PostSessionWorkspace({ clientId }: PostSessionWorkspaceProps) {
     return () => {
       cancelled = true;
     };
-  }, [clientId, sessionId, supabase]);
+  }, [clientId, sessionId, insforge]);
 
   if (loading) {
     return (

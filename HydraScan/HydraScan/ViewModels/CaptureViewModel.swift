@@ -33,14 +33,14 @@ final class CaptureViewModel: ObservableObject {
     let user: HydraUser
     let profile: ClientProfile
 
-    private let service: SupabaseServiceProtocol
+    private let service: InsforgeServiceProtocol
     private let offlineCacheService: OfflineCacheServiceProtocol
     private var captureTask: Task<Void, Never>?
 
     init(
         user: HydraUser,
         profile: ClientProfile,
-        service: SupabaseServiceProtocol,
+        service: InsforgeServiceProtocol,
         offlineCacheService: OfflineCacheServiceProtocol = OfflineCacheService.shared
     ) {
         self.user = user

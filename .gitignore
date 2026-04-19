@@ -13,9 +13,6 @@ dist/
 HydraScan/Config/LocalSecrets.xcconfig
 HydraScan/HydraScan/Config/LocalSecrets.xcconfig
 
-# Supabase local state
-.supabase/
-
 # Logs and editor noise
 *.log
 .vscode/
@@ -25,3 +22,18 @@ Thumbs.db
 # Xcode user state
 *.xcuserstate
 xcuserdata/
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

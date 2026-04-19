@@ -21,6 +21,6 @@ struct BodyMapView: View {
 }
 
 #Preview {
-    BodyMapView(viewModel: IntakeViewModel(user: .preview, service: MockSupabaseService.shared))
+    BodyMapView(viewModel: IntakeViewModel(user: .preview, service: MockInsforgeService.shared))
         .padding()
 }

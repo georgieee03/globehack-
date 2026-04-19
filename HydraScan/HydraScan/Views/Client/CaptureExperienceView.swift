@@ -10,7 +10,7 @@ private enum CaptureScreen {
 
 struct CaptureExperienceView: View {
     let user: HydraUser
-    let service: SupabaseServiceProtocol
+    let service: InsforgeServiceProtocol
     let onFlowFinished: () -> Void
 
     @State private var screen: CaptureScreen = .intake
@@ -68,5 +68,5 @@ struct CaptureExperienceView: View {
 }
 
 #Preview {
-    CaptureExperienceView(user: .preview, service: MockSupabaseService.shared) {}
+    CaptureExperienceView(user: .preview, service: MockInsforgeService.shared) {}
 }

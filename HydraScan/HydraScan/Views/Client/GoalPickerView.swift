@@ -41,6 +41,6 @@ struct GoalPickerView: View {
 }
 
 #Preview {
-    GoalPickerView(viewModel: IntakeViewModel(user: .preview, service: MockSupabaseService.shared))
+    GoalPickerView(viewModel: IntakeViewModel(user: .preview, service: MockInsforgeService.shared))
         .padding()
 }

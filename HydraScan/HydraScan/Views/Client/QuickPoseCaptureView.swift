@@ -7,7 +7,7 @@ struct QuickPoseCaptureView: View {
     init(
         user: HydraUser,
         profile: ClientProfile,
-        service: SupabaseServiceProtocol,
+        service: InsforgeServiceProtocol,
         onComplete: @escaping (Assessment, AssessmentPersistenceState?) -> Void
     ) {
         _viewModel = StateObject(wrappedValue: CaptureViewModel(user: user, profile: profile, service: service))
@@ -102,7 +102,7 @@ struct QuickPoseCaptureView: View {
     QuickPoseCaptureView(
         user: .preview,
         profile: .preview,
-        service: MockSupabaseService.shared
+        service: MockInsforgeService.shared
     ) { _, _ in }
     .padding()
 }

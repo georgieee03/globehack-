@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CheckInView: View {
     let user: HydraUser
-    let service: SupabaseServiceProtocol
+    let service: InsforgeServiceProtocol
     let onSubmitted: () -> Void
 
     @State private var overallFeeling = 3
@@ -142,5 +142,5 @@ private struct FlowRegionPicker: View {
 }
 
 #Preview {
-    CheckInView(user: .preview, service: MockSupabaseService.shared) {}
+    CheckInView(user: .preview, service: MockInsforgeService.shared) {}
 }

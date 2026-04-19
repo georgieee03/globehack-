@@ -4,7 +4,7 @@ struct IntakeView: View {
     @StateObject private var viewModel: IntakeViewModel
     let onComplete: (ClientProfile) -> Void
 
-    init(user: HydraUser, service: SupabaseServiceProtocol, onComplete: @escaping (ClientProfile) -> Void) {
+    init(user: HydraUser, service: InsforgeServiceProtocol, onComplete: @escaping (ClientProfile) -> Void) {
         _viewModel = StateObject(wrappedValue: IntakeViewModel(user: user, service: service))
         self.onComplete = onComplete
     }
@@ -76,6 +76,6 @@ struct IntakeView: View {
 }
 
 #Preview {
-    IntakeView(user: .preview, service: MockSupabaseService.shared) { _ in }
+    IntakeView(user: .preview, service: MockInsforgeService.shared) { _ in }
         .padding()
 }

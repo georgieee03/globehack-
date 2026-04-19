@@ -3,7 +3,7 @@ import Foundation
 protocol OfflineCacheServiceProtocol {
     func cacheAssessment(_ assessment: Assessment) async throws
     func getCachedAssessments() async throws -> [CachedAssessment]
-    func syncCachedAssessments(using service: SupabaseServiceProtocol) async throws -> Int
+    func syncCachedAssessments(using service: InsforgeServiceProtocol) async throws -> Int
     func clearSyncedAssessments() async throws
     func hasPendingUploads() async -> Bool
 }
@@ -68,7 +68,7 @@ actor OfflineCacheService: OfflineCacheServiceProtocol {
         try loadCache().filter { $0.syncedAt == nil }
     }
 
-    func syncCachedAssessments(using service: SupabaseServiceProtocol) async throws -> Int {
+    func syncCachedAssessments(using service: InsforgeServiceProtocol) async throws -> Int {
         var cachedAssessments = try loadCache()
         var syncedCount = 0
 

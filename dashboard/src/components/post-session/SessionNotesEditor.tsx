@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 
 interface SessionNotesEditorProps {
   sessionId: string;
@@ -10,7 +10,7 @@ interface SessionNotesEditorProps {
 }
 
 export function SessionNotesEditor({ sessionId, initialNotes, onSaved }: SessionNotesEditorProps) {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function SessionNotesEditor({ sessionId, initialNotes, onSaved }: Session
     setMessage(null);
 
     try {
-      const { error } = await supabase
+      const { error } = await insforge
         .from("sessions")
         .update({ practitioner_notes: notes })
         .eq("id", sessionId);

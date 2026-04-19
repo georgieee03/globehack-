@@ -17,9 +17,9 @@ final class FeedbackViewModel: ObservableObject {
     let user: HydraUser
     let assessment: Assessment
 
-    private let service: SupabaseServiceProtocol
+    private let service: InsforgeServiceProtocol
 
-    init(user: HydraUser, assessment: Assessment, service: SupabaseServiceProtocol) {
+    init(user: HydraUser, assessment: Assessment, service: InsforgeServiceProtocol) {
         self.user = user
         self.assessment = assessment
         self.service = service

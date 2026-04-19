@@ -14,7 +14,7 @@ import type {
   SafeEnvelopeViolation,
 } from "@hydrascan/shared";
 import { validateSafeEnvelope } from "@hydrascan/shared";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 import { useRealtimeDevice } from "@/hooks/useRealtimeDevice";
 import { recommend, sendMqttCommand } from "@/lib/edge-functions";
 import { formatBodyRegion, formatConfidence, formatRecoveryScore } from "@/lib/formatters";
@@ -61,7 +61,7 @@ function formatTimestamp(timestamp: Date | string | null) {
 }
 
 export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeSessionId = searchParams.get("sessionId");
@@ -94,8 +94,8 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
       setErrorMessage(null);
 
       const [{ data: profile, error: profileError }, { data: assessment, error: assessmentError }] = await Promise.all([
-        supabase.from("client_profiles").select("*").eq("id", clientId).maybeSingle(),
-        supabase.from("assessments").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        insforge.from("client_profiles").select("*").eq("id", clientId).maybeSingle(),
+        insforge.from("assessments").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (cancelled) return;
@@ -118,7 +118,7 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
       const clinicId = (profile as ClientProfileRecord | null)?.clinic_id;
 
       if (clinicId) {
-        const { data: deviceRows, error: deviceError } = await supabase
+        const { data: deviceRows, error: deviceError } = await insforge
           .from("devices")
           .select("*")
           .eq("clinic_id", clinicId)
@@ -141,7 +141,7 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
       }
 
       if (activeSessionId) {
-        const { data: sessionRow, error: sessionError } = await supabase.from("sessions").select("*").eq("id", activeSessionId).maybeSingle();
+        const { data: sessionRow, error: sessionError } = await insforge.from("sessions").select("*").eq("id", activeSessionId).maybeSingle();
         if (!cancelled) {
           if (sessionError) {
             setErrorMessage(sessionError.message);
@@ -150,7 +150,7 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
           }
         }
       } else {
-        const { data: sessionRow, error: sessionError } = await supabase
+        const { data: sessionRow, error: sessionError } = await insforge
           .from("sessions")
           .select("*")
           .eq("client_id", clientId)
@@ -178,7 +178,7 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, clientId, isRetestMode, supabase]);
+  }, [activeSessionId, clientId, isRetestMode, insforge]);
 
   useEffect(() => {
     if (!devices.length) return;
@@ -196,12 +196,12 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
     const liveSession = currentSessionForControls;
     if (liveSession?.status === "active" && previousStatus && previousStatus !== "idle" && deviceStatus === "idle") {
       void (async () => {
-        await supabase
+        await insforge
           .from("sessions")
           .update({ status: "completed", completed_at: new Date().toISOString() })
           .eq("id", liveSession.id);
 
-        await supabase
+        await insforge
           .from("devices")
           .update({ status: "idle" })
           .eq("id", liveSession.device_id);
@@ -211,7 +211,7 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
     }
 
     previousDeviceStatus.current = deviceStatus;
-  }, [clientId, currentDeviceId, currentSessionForControls, deviceStatus, router, supabase]);
+  }, [clientId, currentDeviceId, currentSessionForControls, deviceStatus, router, insforge]);
 
   async function launchSession() {
     setLaunching(true);
@@ -256,10 +256,10 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
 
       setSimulation(Boolean(mqttResponse?.simulated));
 
-      const { data: userResult } = await supabase.auth.getUser();
+      const { data: userResult } = await insforge.auth.getUser();
       const practitionerId = userResult.user?.id ?? "";
 
-      const { data: insertedSession, error: insertError } = await supabase
+      const { data: insertedSession, error: insertError } = await insforge
         .from("sessions")
         .insert({
           client_id: clientId,
@@ -322,8 +322,8 @@ export function SessionWorkspace({ clientId }: SessionWorkspaceProps) {
         payload.completed_at = new Date().toISOString();
       }
 
-      await supabase.from("sessions").update(payload).eq("id", session.id);
-      await supabase.from("devices").update({ status: deviceNextStatus }).eq("id", session.device_id);
+      await insforge.from("sessions").update(payload).eq("id", session.id);
+      await insforge.from("devices").update({ status: deviceNextStatus }).eq("id", session.device_id);
 
       setActiveSession((current) => (current ? { ...current, status: nextStatus, completed_at: nextStatus === "completed" ? new Date().toISOString() : current.completed_at } : current));
 

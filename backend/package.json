@@ -3,12 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "supabase:start": "supabase start",
-    "supabase:stop": "supabase stop",
-    "db:reset": "supabase db reset",
-    "functions:serve": "supabase functions serve"
+    "insforge:current": "npx @insforge/cli current",
+    "insforge:metadata": "npx @insforge/cli metadata",
+    "db:tables": "npx @insforge/cli db tables",
+    "db:query": "npx @insforge/cli db query",
+    "db:import": "npx @insforge/cli db import",
+    "functions:list": "npx @insforge/cli functions list",
+    "functions:deploy": "npx @insforge/cli functions deploy"
   },
   "devDependencies": {
-    "supabase": "^2.26.8"
+    "@insforge/cli": "^0.1.53"
   }
 }

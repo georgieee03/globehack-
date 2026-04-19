@@ -31,10 +31,10 @@ final class IntakeViewModel: ObservableObject {
 
     let user: HydraUser
 
-    private let service: SupabaseServiceProtocol
+    private let service: InsforgeServiceProtocol
     private(set) var clientProfile: ClientProfile = .empty
 
-    init(user: HydraUser, service: SupabaseServiceProtocol) {
+    init(user: HydraUser, service: InsforgeServiceProtocol) {
         self.user = user
         self.service = service
     }

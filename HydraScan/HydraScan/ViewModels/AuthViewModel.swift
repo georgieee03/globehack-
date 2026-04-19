@@ -13,15 +13,15 @@ final class AuthViewModel: ObservableObject {
     @Published var infoMessage: String?
 
     private let service: AuthServiceProtocol
-    private let supabaseService: SupabaseServiceProtocol
+    private let insforgeService: InsforgeServiceProtocol
 
     init(
         service: AuthServiceProtocol? = nil,
-        supabaseService: SupabaseServiceProtocol? = nil
+        insforgeService: InsforgeServiceProtocol? = nil
     ) {
-        let resolvedSupabaseService = supabaseService ?? MockSupabaseService.shared
-        self.supabaseService = resolvedSupabaseService
-        self.service = service ?? MockAuthService(supabaseService: resolvedSupabaseService)
+        let resolvedInsforgeService = insforgeService ?? MockInsforgeService.shared
+        self.insforgeService = resolvedInsforgeService
+        self.service = service ?? MockAuthService(insforgeService: resolvedInsforgeService)
     }
 
     var currentUser: HydraUser? {
@@ -115,7 +115,7 @@ final class AuthViewModel: ObservableObject {
         infoMessage = nil
 
         do {
-            let context = try await supabaseService.claimClinicInvite(
+            let context = try await insforgeService.claimClinicInvite(
                 inviteCode: trimmedCode,
                 fullName: trimmedName
             )

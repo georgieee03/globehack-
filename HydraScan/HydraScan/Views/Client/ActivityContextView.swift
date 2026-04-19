@@ -56,6 +56,6 @@ struct FlowLayout<Content: View>: View {
 }
 
 #Preview {
-    ActivityContextView(viewModel: IntakeViewModel(user: .preview, service: MockSupabaseService.shared))
+    ActivityContextView(viewModel: IntakeViewModel(user: .preview, service: MockInsforgeService.shared))
         .padding()
 }

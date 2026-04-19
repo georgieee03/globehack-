@@ -86,6 +86,6 @@ private struct SignalCard: View {
 }
 
 #Preview {
-    SignalEntryView(viewModel: IntakeViewModel(user: .preview, service: MockSupabaseService.shared))
+    SignalEntryView(viewModel: IntakeViewModel(user: .preview, service: MockInsforgeService.shared))
         .padding()
 }

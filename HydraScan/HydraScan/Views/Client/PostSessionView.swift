@@ -4,7 +4,7 @@ struct PostSessionView: View {
     @StateObject private var viewModel: FeedbackViewModel
     let onSubmitted: () -> Void
 
-    init(user: HydraUser, assessment: Assessment, service: SupabaseServiceProtocol, onSubmitted: @escaping () -> Void) {
+    init(user: HydraUser, assessment: Assessment, service: InsforgeServiceProtocol, onSubmitted: @escaping () -> Void) {
         _viewModel = StateObject(wrappedValue: FeedbackViewModel(user: user, assessment: assessment, service: service))
         self.onSubmitted = onSubmitted
     }
@@ -100,6 +100,6 @@ struct PostSessionView: View {
 }
 
 #Preview {
-    PostSessionView(user: .preview, assessment: .preview, service: MockSupabaseService.shared) {}
+    PostSessionView(user: .preview, assessment: .preview, service: MockInsforgeService.shared) {}
         .padding()
 }

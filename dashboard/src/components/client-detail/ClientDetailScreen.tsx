@@ -10,7 +10,7 @@ import type {
   RecoveryGraphPoint,
   SessionRecord,
 } from "@hydrascan/shared";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 import { useRecommendation } from "@/hooks/useRecommendation";
 import { useRecoveryGraph } from "@/hooks/useRecoveryGraph";
 import {
@@ -109,7 +109,7 @@ function RecoveryGraphPanel({
 }
 
 export function ClientDetailScreen() {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const params = useParams<{ clientId: string }>();
   const searchParams = useSearchParams();
   const clientId = params?.clientId ?? "";
@@ -133,20 +133,20 @@ export function ClientDetailScreen() {
       setError(null);
 
       const [profileResult, assessmentResult, sessionsResult] = await Promise.all([
-        supabase
+        insforge
           .from("client_profiles")
           .select("*, users:user_id(full_name)")
           .eq("id", clientId)
           .maybeSingle(),
         requestedAssessmentId
-          ? supabase.from("assessments").select("*").eq("id", requestedAssessmentId).maybeSingle()
-          : supabase
+          ? insforge.from("assessments").select("*").eq("id", requestedAssessmentId).maybeSingle()
+          : insforge
               .from("assessments")
               .select("*")
               .eq("client_id", clientId)
               .order("created_at", { ascending: false })
               .limit(1),
-        supabase
+        insforge
           .from("sessions")
           .select(
             "id, client_id, status, session_config, practitioner_notes, recommendation_rationale, outcome, completed_at, created_at, updated_at",
@@ -191,7 +191,7 @@ export function ClientDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, requestedAssessmentId, reloadToken, supabase]);
+  }, [clientId, requestedAssessmentId, reloadToken, insforge]);
 
   const recommendation = useRecommendation(clientId, assessment?.id ?? "");
   const recommendationEnvelope = recommendation.recommendation as RecommendationEnvelope | null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 import {
   ClientListTable,
   type ClientListItem,
@@ -107,7 +107,7 @@ function buildClientList(
 }
 
 export default function ClientListPage() {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const [clients, setClients] = useState<ClientListItem[]>([]);
   const [sortMode, setSortMode] = useState<ClientListSortMode>("recent");
   const [isLoading, setIsLoading] = useState(true);
@@ -121,7 +121,7 @@ export default function ClientListPage() {
       setIsLoading(true);
       setError(null);
 
-      const { data: profiles, error: profileError } = await supabase
+      const { data: profiles, error: profileError } = await insforge
         .from("client_profiles")
         .select("*, users:user_id(full_name)")
         .order("updated_at", { ascending: false });
@@ -145,12 +145,12 @@ export default function ClientListPage() {
       const clientIds = clientProfiles.map((profile) => profile.id);
 
       const [sessionsResult, recoveryGraphResult] = await Promise.all([
-        supabase
+        insforge
           .from("sessions")
           .select("id, client_id, status, started_at, completed_at, created_at, updated_at")
           .in("client_id", clientIds)
           .order("updated_at", { ascending: false }),
-        supabase
+        insforge
           .from("recovery_graph")
           .select("id, client_id, metric_type, value, recorded_at")
           .eq("metric_type", "recovery_score")
@@ -200,7 +200,7 @@ export default function ClientListPage() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, reloadToken]);
+  }, [insforge, reloadToken]);
 
   const sortedClients = sortClients(clients, sortMode);
 

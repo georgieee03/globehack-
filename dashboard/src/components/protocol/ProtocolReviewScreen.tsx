@@ -9,7 +9,7 @@ import type {
   ClientProfileRecord,
   SessionConfig,
 } from "@hydrascan/shared";
-import { useSupabase } from "@/hooks/useSupabase";
+import { useInsforge } from "@/hooks/useInsforge";
 import { useRecommendation } from "@/hooks/useRecommendation";
 import { formatBodyRegion, formatConfidence, formatRecoveryScore } from "@/lib/formatters";
 import { ConfidenceBadge } from "./ConfidenceBadge";
@@ -109,7 +109,7 @@ function buildPractitionerEdits(recommended: SessionConfig, edited: SessionConfi
 }
 
 export function ProtocolReviewScreen() {
-  const supabase = useSupabase();
+  const insforge = useInsforge();
   const params = useParams<{ clientId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -133,14 +133,14 @@ export function ProtocolReviewScreen() {
       setError(null);
 
       const [profileResult, assessmentResult] = await Promise.all([
-        supabase
+        insforge
           .from("client_profiles")
           .select("*, users:user_id(full_name)")
           .eq("id", clientId)
           .maybeSingle(),
         requestedAssessmentId
-          ? supabase.from("assessments").select("*").eq("id", requestedAssessmentId).maybeSingle()
-          : supabase
+          ? insforge.from("assessments").select("*").eq("id", requestedAssessmentId).maybeSingle()
+          : insforge
               .from("assessments")
               .select("*")
               .eq("client_id", clientId)
@@ -176,7 +176,7 @@ export function ProtocolReviewScreen() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, requestedAssessmentId, reloadToken, supabase]);
+  }, [clientId, requestedAssessmentId, reloadToken, insforge]);
 
   const recommendation = useRecommendation(clientId, assessment?.id ?? "");
   const recommendationEnvelope = recommendation.recommendation as RecommendationEnvelope | null;

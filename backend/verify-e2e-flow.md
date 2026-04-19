@@ -4,22 +4,22 @@ This document provides step-by-step verification of the complete MQTT command fl
 
 ## Prerequisites
 
-1. Supabase local instance running (`supabase start` from `backend/` directory)
-2. Database migrations applied (`supabase db reset`)
-3. Seed data loaded (automatically loaded with db reset)
+1. InsForge backend running (`npx @insforge/cli current` from `backend/` directory)
+2. Database migrations applied (`npx @insforge/cli db import`)
+3. Seed data loaded (`backend/insforge/seed/seed.sql`)
 4. Environment variable `HYDRAWAV_API_BASE_URL` set to `simulation` or unset
 
 ## Test Flow Overview
 
 The end-to-end flow verifies:
-1. **Authentication** → User authenticates and receives JWT
-2. **Device Lookup** → System fetches device record with MAC and current status
-3. **State Validation** → System validates command is allowed for current device status
-4. **Safe Envelope Validation** → For START commands, validates SessionConfig parameters
-5. **Payload Construction** → Builds appropriate MQTT payload (full for START, minimal for others)
-6. **Simulation Mode** → Skips actual HTTP call to Hydrawav3 API
-7. **Status Update** → Updates device status in database
-8. **Audit Logging** → Records command in mqtt_command_log table
+1. **Authentication** â†’ User authenticates and receives JWT
+2. **Device Lookup** â†’ System fetches device record with MAC and current status
+3. **State Validation** â†’ System validates command is allowed for current device status
+4. **Safe Envelope Validation** â†’ For START commands, validates SessionConfig parameters
+5. **Payload Construction** â†’ Builds appropriate MQTT payload (full for START, minimal for others)
+6. **Simulation Mode** â†’ Skips actual HTTP call to Hydrawav3 API
+7. **Status Update** â†’ Updates device status in database
+8. **Audit Logging** â†’ Records command in mqtt_command_log table
 
 ## Manual Verification Steps
 
@@ -27,9 +27,8 @@ The end-to-end flow verifies:
 
 ```bash
 # Using curl or your preferred HTTP client
-curl -X POST http://127.0.0.1:54321/auth/v1/token?grant_type=password \
+curl -X POST http://127.0.0.1:7130/api/auth/sessions \
   -H "Content-Type: application/json" \
-  -H "apikey: YOUR_SUPABASE_ANON_KEY" \
   -d '{
     "email": "priya@phoenixrecovery.test",
     "password": "HydraScan123!"
@@ -38,12 +37,12 @@ curl -X POST http://127.0.0.1:54321/auth/v1/token?grant_type=password \
 
 **Expected Result:**
 - HTTP 200 OK
-- Response contains `access_token` field
+- Response contains `accessToken` field
 - Token is a valid JWT
 
 **Verification:**
-✅ User authentication successful
-✅ JWT token received
+âœ… User authentication successful
+âœ… JWT token received
 
 ### Step 2: Verify Initial Device Status
 
@@ -60,13 +59,13 @@ WHERE id = 'de111111-1111-1111-1111-111111111111';
 - Label is `Hydra Bay 1`
 
 **Verification:**
-✅ Device found in registry
-✅ Initial status is `idle`
+âœ… Device found in registry
+âœ… Initial status is `idle`
 
 ### Step 3: Send START Command
 
 ```bash
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -112,10 +111,10 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 ```
 
 **Verification:**
-✅ Command accepted (HTTP 200)
-✅ Response indicates simulation mode (`simulated: true`)
-✅ Device transitioned to `in_session` status
-✅ Device MAC address returned
+âœ… Command accepted (HTTP 200)
+âœ… Response indicates simulation mode (`simulated: true`)
+âœ… Device transitioned to `in_session` status
+âœ… Device MAC address returned
 
 ### Step 4: Verify Device Status Updated
 
@@ -130,8 +129,8 @@ WHERE id = 'de111111-1111-1111-1111-111111111111';
 - `updated_at` timestamp is recent (within last few seconds)
 
 **Verification:**
-✅ Device status updated to `in_session`
-✅ Timestamp reflects recent update
+âœ… Device status updated to `in_session`
+âœ… Timestamp reflects recent update
 
 ### Step 5: Verify Audit Log Entry
 
@@ -162,17 +161,17 @@ LIMIT 1;
 - `created_at` is recent
 
 **Verification:**
-✅ Audit log entry created
-✅ Command type recorded correctly
-✅ Simulation flag set to true
-✅ Full payload captured
-✅ Success status recorded (200)
-✅ No errors logged
+âœ… Audit log entry created
+âœ… Command type recorded correctly
+âœ… Simulation flag set to true
+âœ… Full payload captured
+âœ… Success status recorded (200)
+âœ… No errors logged
 
 ### Step 6: Send PAUSE Command
 
 ```bash
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -193,9 +192,9 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 ```
 
 **Verification:**
-✅ Pause command accepted
-✅ Device transitioned to `paused` status
-✅ Minimal payload (no SessionConfig required)
+âœ… Pause command accepted
+âœ… Device transitioned to `paused` status
+âœ… Minimal payload (no SessionConfig required)
 
 ### Step 7: Verify State Transition
 
@@ -208,13 +207,13 @@ WHERE id = 'de111111-1111-1111-1111-111111111111';
 - Status is now `paused`
 
 **Verification:**
-✅ Device status updated to `paused`
-✅ State machine transition validated (in_session → paused)
+âœ… Device status updated to `paused`
+âœ… State machine transition validated (in_session â†’ paused)
 
 ### Step 8: Send RESUME Command
 
 ```bash
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -235,13 +234,13 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 ```
 
 **Verification:**
-✅ Resume command accepted
-✅ Device transitioned back to `in_session` status
+âœ… Resume command accepted
+âœ… Device transitioned back to `in_session` status
 
 ### Step 9: Send STOP Command
 
 ```bash
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -262,9 +261,9 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 ```
 
 **Verification:**
-✅ Stop command accepted
-✅ Device transitioned back to `idle` status
-✅ Complete lifecycle verified (idle → in_session → paused → in_session → idle)
+âœ… Stop command accepted
+âœ… Device transitioned back to `idle` status
+âœ… Complete lifecycle verified (idle â†’ in_session â†’ paused â†’ in_session â†’ idle)
 
 ### Step 10: Verify Complete Audit Trail
 
@@ -288,10 +287,10 @@ LIMIT 4;
 - PlayCmd values: 3 (stop), 4 (resume), 2 (pause), 1 (start)
 
 **Verification:**
-✅ Complete command history recorded
-✅ All commands marked as simulated
-✅ All commands succeeded
-✅ Correct playCmd values for each command type
+âœ… Complete command history recorded
+âœ… All commands marked as simulated
+âœ… All commands succeeded
+âœ… Correct playCmd values for each command type
 
 ## Negative Test Cases
 
@@ -299,7 +298,7 @@ LIMIT 4;
 
 ```bash
 # Try to PAUSE when device is already idle
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -315,15 +314,15 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 - Descriptive detail explaining why transition is not allowed
 
 **Verification:**
-✅ Invalid transition rejected
-✅ Appropriate HTTP status code (409)
-✅ Descriptive error message provided
+âœ… Invalid transition rejected
+âœ… Appropriate HTTP status code (409)
+âœ… Descriptive error message provided
 
 ### Test 2: Safe Envelope Violation
 
 ```bash
 # Try to START with pwmHot value too high
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -366,15 +365,15 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
   - `max: 150`
 
 **Verification:**
-✅ Safe envelope violation detected
-✅ Appropriate HTTP status code (400)
-✅ All violations reported with parameter names, actual values, and allowed ranges
+âœ… Safe envelope violation detected
+âœ… Appropriate HTTP status code (400)
+âœ… All violations reported with parameter names, actual values, and allowed ranges
 
 ### Test 3: Region-Specific Safe Envelope
 
 ```bash
 # Try to START with pwmHot=130 for neck region (max is 100 for neck)
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
@@ -413,14 +412,14 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 - Violations show `max: 100` (neck-specific override, not default 150)
 
 **Verification:**
-✅ Region-specific safe envelope applied
-✅ Tighter constraints enforced for sensitive regions
+âœ… Region-specific safe envelope applied
+âœ… Tighter constraints enforced for sensitive regions
 
 ### Test 4: Unauthenticated Request
 
 ```bash
 # Try to send command without Authorization header
-curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
+curl -X POST http://127.0.0.1:7130/functions/hydrawav-mqtt \
   -H "Content-Type: application/json" \
   -d '{
     "deviceId": "de111111-1111-1111-1111-111111111111",
@@ -433,8 +432,8 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 - Error message about missing or invalid authentication
 
 **Verification:**
-✅ Unauthenticated requests rejected
-✅ Appropriate HTTP status code (401)
+âœ… Unauthenticated requests rejected
+âœ… Appropriate HTTP status code (401)
 
 ### Test 5: Cross-Clinic Access Attempt
 
@@ -448,55 +447,55 @@ curl -X POST http://127.0.0.1:54321/functions/v1/hydrawav-mqtt \
 - OR HTTP 403 Forbidden
 
 **Verification:**
-✅ Multi-tenant isolation enforced
-✅ Users cannot access devices from other clinics
+âœ… Multi-tenant isolation enforced
+âœ… Users cannot access devices from other clinics
 
 ## Component Integration Checklist
 
-### ✅ Authentication Layer
-- [x] User authenticates via Supabase Auth
+### âœ… Authentication Layer
+- [x] User authenticates via InsForge Auth
 - [x] JWT token issued and validated
 - [x] User profile loaded with clinic_id and role
 - [x] Role-based access enforced (practitioner/admin can send commands)
 
-### ✅ Device Lookup
+### âœ… Device Lookup
 - [x] Device fetched from registry by UUID
 - [x] Device MAC address retrieved
 - [x] Current device status retrieved
 - [x] Clinic isolation enforced (RLS)
 
-### ✅ State Validation
+### âœ… State Validation
 - [x] Current status checked against command
-- [x] Valid transitions allowed (idle→start, in_session→pause, etc.)
+- [x] Valid transitions allowed (idleâ†’start, in_sessionâ†’pause, etc.)
 - [x] Invalid transitions rejected with 409
 - [x] Descriptive error messages provided
 
-### ✅ Safe Envelope Validation
+### âœ… Safe Envelope Validation
 - [x] SessionConfig parameters validated against ranges
 - [x] Default safe envelope applied
 - [x] Region-specific overrides applied when bodyRegion provided
 - [x] All violations reported (not just first)
 - [x] Violations include parameter name, actual value, min, max
 
-### ✅ Payload Construction
+### âœ… Payload Construction
 - [x] START command builds full SessionConfig payload
 - [x] PAUSE/RESUME/STOP commands build minimal payload
 - [x] Device MAC included in all payloads
 - [x] Correct playCmd value set (1=start, 2=pause, 3=stop, 4=resume)
 - [x] Payload serialized as JSON string
 
-### ✅ Simulation Mode
+### âœ… Simulation Mode
 - [x] Simulation mode detected from environment variable
 - [x] HTTP call to Hydrawav3 API skipped in simulation mode
 - [x] All other processing identical to live mode
 - [x] Response includes `simulated: true` flag
 
-### ✅ Status Update
+### âœ… Status Update
 - [x] Device status updated in database
 - [x] Correct new status set based on command
 - [x] updated_at timestamp refreshed
 
-### ✅ Audit Logging
+### âœ… Audit Logging
 - [x] Command logged to mqtt_command_log table
 - [x] Clinic ID and device ID recorded
 - [x] Command type recorded
@@ -532,13 +531,13 @@ This end-to-end verification covers the following requirements:
 
 The end-to-end MQTT command flow verification demonstrates that all components are properly wired together:
 
-1. ✅ **Authentication** → Users authenticate and receive valid JWT tokens
-2. ✅ **Device Lookup** → Devices are fetched with MAC and status, respecting clinic isolation
-3. ✅ **State Validation** → State machine transitions are validated, invalid transitions rejected
-4. ✅ **Safe Envelope** → SessionConfig parameters validated against safe ranges with region overrides
-5. ✅ **Payload Build** → Correct payloads constructed (full for START, minimal for others)
-6. ✅ **Simulation** → Simulation mode works identically to live mode without HTTP calls
-7. ✅ **Status Update** → Device status updated correctly in database
-8. ✅ **Audit Log** → Complete command history recorded with all details
+1. âœ… **Authentication** â†’ Users authenticate and receive valid JWT tokens
+2. âœ… **Device Lookup** â†’ Devices are fetched with MAC and status, respecting clinic isolation
+3. âœ… **State Validation** â†’ State machine transitions are validated, invalid transitions rejected
+4. âœ… **Safe Envelope** â†’ SessionConfig parameters validated against safe ranges with region overrides
+5. âœ… **Payload Build** â†’ Correct payloads constructed (full for START, minimal for others)
+6. âœ… **Simulation** â†’ Simulation mode works identically to live mode without HTTP calls
+7. âœ… **Status Update** â†’ Device status updated correctly in database
+8. âœ… **Audit Log** â†’ Complete command history recorded with all details
 
 The complete request flow from authenticated user to simulated command response is verified and working correctly.

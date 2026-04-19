@@ -51,7 +51,7 @@ const SCAN_PATTERNS = [
   "dashboard/src/**/*.tsx",
   "dashboard/src/**/*.ts",
   "shared/src/**/*.ts",
-  "backend/supabase/seed/**/*.sql",
+  "backend/insforge/seed/**/*.sql",
 ];
 
 // Files/dirs to skip
@@ -190,8 +190,8 @@ function main() {
   const dirsToScan = [
     join(rootDir, "dashboard", "src"),
     join(rootDir, "shared", "src"),
-    join(rootDir, "backend", "supabase", "seed"),
-    join(rootDir, "backend", "supabase", "functions"),
+    join(rootDir, "backend", "insforge", "seed"),
+    join(rootDir, "backend", "insforge", "functions"),
   ];
 
   const allFiles: string[] = [];

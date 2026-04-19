@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .home
     @State private var homeRefreshToken = UUID()
 
-    private let service: SupabaseServiceProtocol = MockSupabaseService.shared
+    private let service: InsforgeServiceProtocol = MockInsforgeService.shared
     private let debugDestination = ProcessInfo.processInfo.arguments.contains("--quickpose-lab")
 
     var body: some View {
@@ -40,7 +40,7 @@ struct ContentView: View {
         } else if authViewModel.isClientReady, let currentUser = authViewModel.currentUser {
             mainTabs(for: currentUser)
         } else {
-            ProgressView("Loading HydraScan…")
+            ProgressView("Loading HydraScanâ€¦")
         }
     }
 
@@ -97,7 +97,7 @@ private struct HomeTabView: View {
 
     init(
         user: HydraUser,
-        service: SupabaseServiceProtocol,
+        service: InsforgeServiceProtocol,
         refreshToken: UUID,
         onStartCapture: @escaping () -> Void,
         onOpenCheckIn: @escaping () -> Void
@@ -221,10 +221,10 @@ private struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Environment")
                         .font(.headline)
-                    Text("Supabase URL: \(HydraScanConstants.supabaseURLString)")
+                    Text("InsForge URL: \(HydraScanConstants.insforgeURLString)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("Session and device controls should route through Supabase Edge Functions and Realtime updates, not direct Hydrawav API calls from the app.")
+                    Text("Session and device controls should route through InsForge functions and synchronized backend updates, not direct Hydrawav API calls from the app.")
                         .foregroundStyle(.secondary)
                 }
 

@@ -9,7 +9,7 @@ import type {
   SessionConfig,
   SafeEnvelopeViolation,
 } from "@/types";
-import { supabase } from "./supabase-client";
+import { insforge } from "./insforge-client";
 
 interface ActionEnvelope<T> {
   success: boolean;
@@ -50,7 +50,7 @@ async function invokeEdgeFunction<TResponse>(
   functionName: string,
   body: Record<string, unknown>,
 ): Promise<TResponse> {
-  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  const { data, error } = await insforge.functions.invoke(functionName, { body });
   if (error) {
     throw new EdgeFunctionError(error.message, error);
   }
