@@ -10,6 +10,8 @@ dist/
 # Environment and local secrets
 .env
 .env.local
+HydraScan/Config/LocalSecrets.xcconfig
+HydraScan/HydraScan/Config/LocalSecrets.xcconfig
 
 # Supabase local state
 .supabase/
@@ -19,3 +21,7 @@ dist/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
