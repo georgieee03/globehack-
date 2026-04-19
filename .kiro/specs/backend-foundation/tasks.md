@@ -159,7 +159,7 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
     - **Validates: Requirements 5.2, 5.3, 5.4, 5.5, 6.2, 6.3**
 
 - [ ] 7. Create seed data
-  - [ ] 7.1 Create comprehensive seed SQL file
+  - [x] 7.1 Create comprehensive seed SQL file
     - Create `backend/supabase/seed/seed.sql` with mock data for:
       - At least 2 clinics (e.g., "Phoenix Recovery Center", "Scottsdale Wellness Studio")
       - Multiple users across all 3 roles per clinic (at least 1 admin, 2 practitioners, 3 clients per clinic)
@@ -175,24 +175,24 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
   - Ask the user if questions arise.
 
 - [ ] 9. Implement Edge Function shared utilities
-  - [ ] 9.1 Create CORS handler utility
+  - [x] 9.1 Create CORS handler utility
     - Create `backend/supabase/functions/_shared/cors.ts` with CORS headers for Edge Functions
     - Handle OPTIONS preflight requests
     - _Requirements: 16.1, 16.4_
 
-  - [ ] 9.2 Create Supabase client utility
+  - [x] 9.2 Create Supabase client utility
     - Create `backend/supabase/functions/_shared/supabase-client.ts`
     - Create helper to initialize Supabase client with service role key from `Deno.env.get()`
     - Create helper to extract and verify user JWT from Authorization header
     - _Requirements: 3.3, 4.2, 4.3_
 
-  - [ ] 9.3 Create safe envelope Edge Function utility
+  - [x] 9.3 Create safe envelope Edge Function utility
     - Create `backend/supabase/functions/_shared/safe-envelope.ts`
     - Import or re-implement `validateSafeEnvelope` for Deno runtime compatibility
     - _Requirements: 13.3_
 
 - [ ] 10. Implement hydrawav-auth Edge Function
-  - [ ] 10.1 Create hydrawav-auth endpoint
+  - [x] 10.1 Create hydrawav-auth endpoint
     - Create `backend/supabase/functions/hydrawav-auth/index.ts`
     - Accept POST with `{ username, password }` body
     - Verify caller is an admin for their clinic via Supabase JWT → users table lookup
@@ -210,7 +210,7 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
     - _Requirements: 11.1, 11.2, 11.3_
 
 - [ ] 11. Implement hydrawav-mqtt Edge Function
-  - [ ] 11.1 Create hydrawav-mqtt endpoint with command routing
+  - [x] 11.1 Create hydrawav-mqtt endpoint with command routing
     - Create `backend/supabase/functions/hydrawav-mqtt/index.ts`
     - Accept POST with `{ deviceId, command, sessionConfig?, bodyRegion? }` body
     - Extract `clinic_id` from authenticated user's JWT
@@ -219,17 +219,17 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
     - Return HTTP 401 for unauthenticated requests
     - _Requirements: 4.3, 12.1, 12.7, 16.4_
 
-  - [ ] 11.2 Implement state transition validation in MQTT handler
+  - [x] 11.2 Implement state transition validation in MQTT handler
     - Validate command against device's current status using `isValidTransition`
     - Return HTTP 409 with descriptive error for invalid transitions
     - _Requirements: 10.6_
 
-  - [ ] 11.3 Implement safe envelope validation for Start commands
+  - [x] 11.3 Implement safe envelope validation for Start commands
     - For `start` commands: validate SessionConfig against safe envelope with optional region overrides
     - Return HTTP 400 with all violations if SessionConfig is outside safe envelope
     - _Requirements: 13.3, 13.4_
 
-  - [ ] 11.4 Implement MQTT payload construction and publishing
+  - [x] 11.4 Implement MQTT payload construction and publishing
     - For `start`: build full SessionConfig payload with device MAC and `playCmd: 1`
     - For `pause`: build minimal payload with MAC and `playCmd: 2`
     - For `stop`: build minimal payload with MAC and `playCmd: 3`
@@ -239,14 +239,14 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
     - Include stored access token in Authorization header
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 11.4_
 
-  - [ ] 11.5 Implement simulation mode
+  - [x] 11.5 Implement simulation mode
     - Check `HYDRAWAV_API_BASE_URL` env var: if not set or set to `"simulation"`, operate in simulation mode
     - In simulation mode: skip HTTP call to Hydrawav3 API, process everything else identically
     - Return `{ success: true, simulated: true }` in simulation mode
     - Log commands with `simulated: true` flag
     - _Requirements: 15.1, 15.2, 15.3, 15.4_
 
-  - [ ] 11.6 Implement device status update and audit logging
+  - [x] 11.6 Implement device status update and audit logging
     - After successful command (live or simulated): update device status in registry using `getNextStatus`
     - Insert audit log record into `mqtt_command_log` with clinic_id, device_id, command, payload, response status, simulated flag
     - Log error details if MQTT API returns an error
@@ -306,7 +306,7 @@ This plan implements the HydraScan backend foundation as a Turborepo monorepo wi
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 16.3_
 
 - [ ] 16. Final integration and wiring
-  - [ ] 16.1 Verify end-to-end MQTT command flow in simulation mode
+  - [x] 16.1 Verify end-to-end MQTT command flow in simulation mode
     - Wire all components together: auth → device lookup → state validation → safe envelope → payload build → simulation → status update → audit log
     - Verify the complete request flow from authenticated user to simulated command response
     - _Requirements: 12.1, 15.1, 15.2, 15.3_

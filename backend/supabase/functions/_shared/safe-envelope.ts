@@ -1,3 +1,17 @@
+/**
+ * Safe Envelope Validation for Deno Edge Functions
+ * 
+ * This module provides Deno-compatible validation for SessionConfig parameters
+ * against safe envelope constraints. It re-implements the validation logic from
+ * the shared package (@hydrascan/shared) to ensure compatibility with the Deno
+ * runtime used in Supabase Edge Functions.
+ * 
+ * The safe envelope defines min/max ranges for all SessionConfig parameters to
+ * prevent unsafe values from being sent to HydraWav3Pro devices. Region-specific
+ * overrides (e.g., neck, lower_back) provide tighter constraints for sensitive
+ * body regions.
+ */
+
 import {
   COMMAND_TO_PLAY_CMD,
   type HydrawavCommand,
@@ -390,7 +404,7 @@ export function resolveSafeEnvelope(region?: BodyRegion): SafeEnvelope {
 export function validateSafeEnvelope(
   config: SessionConfigInput,
   region?: BodyRegion,
-): { valid: boolean; violations: SafeEnvelopeViolation[] } {
+): { valid: boolean; violations: SafeEnvelopeViolation[]; envelope: SafeEnvelope } {
   const envelope = resolveSafeEnvelope(region);
   const violations: SafeEnvelopeViolation[] = [];
 
@@ -453,6 +467,7 @@ export function validateSafeEnvelope(
   return {
     valid: violations.length === 0,
     violations,
+    envelope,
   };
 }
 
