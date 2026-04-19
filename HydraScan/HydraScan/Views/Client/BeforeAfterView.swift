@@ -13,43 +13,46 @@ struct BeforeAfterView: View {
         guard let firstAssessment, let latestAssessment else { return [] }
 
         return latestAssessment.romValues.keys.sorted().compactMap { key in
-            guard let latest = latestAssessment.romValues[key], let first = firstAssessment.romValues[key] else {
+            guard
+                let latest = latestAssessment.romValues[key],
+                let first = firstAssessment.romValues[key]
+            else {
                 return nil
             }
+
             return (key, first, latest)
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Before & After")
-                .font(.headline)
+        HydraCard(role: .ivory) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Before & After")
+                    .font(HydraTypography.section(28))
+                    .foregroundStyle(HydraTheme.Colors.ink)
 
-            if !hasComparisonData {
-                Text("Complete at least two assessments to unlock your comparison view.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(comparisons, id: \.0) { item in
-                    HStack {
-                        Text(item.0.replacingOccurrences(of: "_", with: " ").capitalized)
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Text("\(Int(item.1))° → \(Int(item.2))°")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(item.2 >= item.1 ? .green : .orange)
+                if !hasComparisonData {
+                    Text("Complete at least two assessments to unlock your comparison view.")
+                        .font(HydraTypography.body(15))
+                        .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                } else {
+                    ForEach(comparisons, id: \.0) { item in
+                        HydraMetricRow(
+                            label: item.0.replacingOccurrences(of: "_", with: " ").capitalized,
+                            value: "\(Int(item.1))° \u{2192} \(Int(item.2))°",
+                            accent: item.2 >= item.1 ? HydraTheme.Colors.success : HydraTheme.Colors.warning
+                        )
                     }
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 }
 
 #Preview {
-    BeforeAfterView(firstAssessment: Assessment.preview, latestAssessment: Assessment.preview)
-        .padding()
+    ZStack {
+        HydraShellBackground()
+        BeforeAfterView(firstAssessment: Assessment.preview, latestAssessment: Assessment.preview)
+            .padding()
+    }
 }

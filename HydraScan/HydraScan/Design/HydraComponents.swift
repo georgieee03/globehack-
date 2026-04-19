@@ -177,6 +177,48 @@ struct HydraPageHeader: View {
     }
 }
 
+struct HydraBrandStage: View {
+    let eyebrow: String?
+    let title: String
+    let subtitle: String?
+    var showsProgress = false
+    var role: HydraSurfaceRole = .elevated
+
+    var body: some View {
+        HydraCard(role: role, padding: 24) {
+            VStack(alignment: .leading, spacing: 18) {
+                HydraBrandWordmark(size: 34, reversed: role == .ivory)
+
+                if let eyebrow {
+                    HydraEyebrow(text: eyebrow)
+                }
+
+                Text(title)
+                    .font(HydraTypography.display(38))
+                    .foregroundStyle(role == .ivory ? HydraTheme.Colors.ink : HydraTheme.Colors.primaryText)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(HydraTypography.body(16))
+                        .foregroundStyle(role == .ivory ? HydraTheme.Colors.inkSecondary : HydraTheme.Colors.secondaryText)
+                }
+
+                if showsProgress {
+                    HStack(spacing: 14) {
+                        ProgressView()
+                            .tint(HydraTheme.Colors.gold)
+
+                        Text("Preparing your premium recovery workspace…")
+                            .font(HydraTypography.body(15, weight: .medium))
+                            .foregroundStyle(role == .ivory ? HydraTheme.Colors.inkSecondary : HydraTheme.Colors.primaryText)
+                    }
+                    .padding(.top, 4)
+                }
+            }
+        }
+    }
+}
+
 struct HydraCard<Content: View>: View {
     let role: HydraSurfaceRole
     var padding: CGFloat = 20

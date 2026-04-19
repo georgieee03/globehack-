@@ -16,7 +16,7 @@ struct GoalPickerView: View {
                     HStack(alignment: .top, spacing: 14) {
                         Image(systemName: viewModel.recoveryGoal == goal ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(viewModel.recoveryGoal == goal ? HydraTheme.Colors.goldDeep : HydraTheme.Colors.secondaryText)
-                            .font(.title3)
+                            .font(HydraTypography.ui(22, weight: .semibold))
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text(goal.displayLabel)

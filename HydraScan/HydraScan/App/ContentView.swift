@@ -42,15 +42,12 @@ struct ContentView: View {
         } else {
             ZStack {
                 HydraShellBackground()
-                HydraCard {
-                    HStack(spacing: 14) {
-                        ProgressView()
-                            .tint(HydraTheme.Colors.gold)
-                        Text("Loading your HydraScan recovery environment…")
-                            .font(HydraTypography.body(15, weight: .medium))
-                            .foregroundStyle(HydraTheme.Colors.primaryText)
-                    }
-                }
+                HydraBrandStage(
+                    eyebrow: "HydraScan Launch",
+                    title: "Loading your recovery environment.",
+                    subtitle: "Assessments, clinic context, and session continuity are syncing into one polished view.",
+                    showsProgress: true
+                )
                 .padding(HydraTheme.Spacing.page)
             }
         }

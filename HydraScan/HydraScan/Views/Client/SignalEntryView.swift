@@ -69,7 +69,7 @@ private struct SignalCard: View {
                     in: 1...10,
                     step: 1
                 )
-                .tint(.teal)
+                .tint(HydraTheme.Colors.gold)
             }
 
             Picker("When do you notice it most?", selection: $workingSignal.trigger) {

@@ -63,7 +63,7 @@ struct ResultsSummaryView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color.white.opacity(0.68))
+                                    .fill(HydraTheme.Colors.ivory.opacity(0.82))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                                             .stroke(HydraTheme.Colors.ivoryBorder.opacity(0.6), lineWidth: 1)
