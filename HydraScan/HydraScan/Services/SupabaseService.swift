@@ -73,16 +73,36 @@ enum HydraRuntime {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
     }
 
+    private static func infoString(forKey key: String) -> String? {
+        (Bundle.main.object(forInfoDictionaryKey: key) as? String)?.nilIfBlank
+    }
+
+    private static func infoBool(forKey key: String) -> Bool {
+        let rawValue = infoString(forKey: key)?.lowercased() ?? ""
+        return rawValue == "1" || rawValue == "yes" || rawValue == "true"
+    }
+
     static var qaAutologinCredentials: (email: String, password: String)? {
-        #if DEBUG && targetEnvironment(simulator)
-        guard ProcessInfo.processInfo.environment["HYDRASCAN_SIMULATOR_AUTOLOGIN"] == "1" else {
+        #if DEBUG
+        let environment = ProcessInfo.processInfo.environment
+        if environment["HYDRASCAN_SIMULATOR_AUTOLOGIN"] == "1" {
+            guard
+                let email = environment["HYDRASCAN_QA_EMAIL"]?.nilIfBlank,
+                let password = environment["HYDRASCAN_QA_PASSWORD"]?.nilIfBlank
+            else {
+                return nil
+            }
+
+            return (email, password)
+        }
+
+        guard infoBool(forKey: "HYDRASCAN_DEBUG_AUTOLOGIN") else {
             return nil
         }
 
-        let environment = ProcessInfo.processInfo.environment
         guard
-            let email = environment["HYDRASCAN_QA_EMAIL"]?.nilIfBlank,
-            let password = environment["HYDRASCAN_QA_PASSWORD"]?.nilIfBlank
+            let email = infoString(forKey: "DEV_QA_EMAIL"),
+            let password = infoString(forKey: "DEV_QA_PASSWORD")
         else {
             return nil
         }

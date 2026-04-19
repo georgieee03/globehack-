@@ -35,6 +35,10 @@ struct ResultsSummaryView: View {
                     values: assessment.movementQualityScores.mapValues { String(format: "%.0f%%", $0 * 100) }
                 )
 
+                if let quickPoseData = assessment.quickPoseData {
+                    quickPoseSummaryCard(quickPoseData: quickPoseData)
+                }
+
                 if let recoveryMap = assessment.recoveryMap {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Recovery Map")
@@ -113,6 +117,42 @@ struct ResultsSummaryView: View {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(persistenceState.tintColor.opacity(0.12))
             )
+    }
+
+    private func quickPoseSummaryCard(quickPoseData: QuickPoseResult) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Scan Details")
+                .font(.headline)
+
+            HStack {
+                Text("Landmark Frames")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(quickPoseData.landmarks.count)")
+                    .fontWeight(.semibold)
+            }
+
+            if quickPoseData.repSummaries.isEmpty {
+                Text("No repeated movement cycles were detected in this scan.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(quickPoseData.repSummaries) { summary in
+                    HStack(alignment: .top) {
+                        Text(summary.movement.replacingOccurrences(of: "_", with: " ").capitalized)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(summary.count) rep\(summary.count == 1 ? "" : "s")")
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
     }
 }
 

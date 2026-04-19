@@ -6,6 +6,12 @@ import QuickPoseCore
 enum QuickPoseVerificationAnalyzer {
     nonisolated static let rightShoulderFeature = QuickPose.Feature.rangeOfMotion(.shoulder(side: .right, clockwiseDirection: true))
     nonisolated static let leftShoulderFeature = QuickPose.Feature.rangeOfMotion(.shoulder(side: .left, clockwiseDirection: false))
+    nonisolated static let rightHipFeature = QuickPose.Feature.rangeOfMotion(.hip(side: .right, clockwiseDirection: true))
+    nonisolated static let leftHipFeature = QuickPose.Feature.rangeOfMotion(.hip(side: .left, clockwiseDirection: false))
+    nonisolated static let rightKneeFeature = QuickPose.Feature.rangeOfMotion(.knee(side: .right, clockwiseDirection: true))
+    nonisolated static let leftKneeFeature = QuickPose.Feature.rangeOfMotion(.knee(side: .left, clockwiseDirection: false))
+    nonisolated static let backFeature = QuickPose.Feature.rangeOfMotion(.back(clockwiseDirection: false))
+    nonisolated static let neckFeature = QuickPose.Feature.rangeOfMotion(.neck(clockwiseDirection: false))
     nonisolated static let overlayFeature = QuickPose.Feature.showPoints()
     nonisolated static let liveFeatures: [QuickPose.Feature] = [
         overlayFeature,
@@ -15,6 +21,17 @@ enum QuickPoseVerificationAnalyzer {
     nonisolated static let fixtureFeatures: [QuickPose.Feature] = [
         rightShoulderFeature,
         leftShoulderFeature,
+    ]
+    nonisolated static let captureFeatures: [QuickPose.Feature] = [
+        overlayFeature,
+        rightShoulderFeature,
+        leftShoulderFeature,
+        rightHipFeature,
+        leftHipFeature,
+        rightKneeFeature,
+        leftKneeFeature,
+        backFeature,
+        neckFeature,
     ]
 
     nonisolated static func frameArtifact(
