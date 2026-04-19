@@ -19,23 +19,29 @@ struct ResultsSummaryView: View {
                     statusBanner(for: persistenceState)
                 }
 
+                summaryOverviewCard
+
                 metricCard(
                     title: "Range of Motion",
-                    values: assessment.romValues.mapValues { String(format: "%.0f°", $0) }
+                    values: assessment.romValues.mapValues { String(format: "%.0f°", $0) },
+                    category: .rom
                 )
 
                 metricCard(
                     title: "Asymmetry",
-                    values: assessment.asymmetryScores.mapValues { String(format: "%.1f%%", $0) }
+                    values: assessment.asymmetryScores.mapValues { String(format: "%.1f%%", $0) },
+                    category: .asymmetry
                 )
 
                 metricCard(
                     title: "Movement Quality",
-                    values: assessment.movementQualityScores.mapValues { String(format: "%.0f%%", $0 * 100) }
+                    values: assessment.movementQualityScores.mapValues { String(format: "%.0f%%", $0 * 100) },
+                    category: .movementQuality
                 )
 
                 if let quickPoseData = assessment.quickPoseData {
                     quickPoseSummaryCard(quickPoseData: quickPoseData)
+                    onboardingStepSections(quickPoseData: quickPoseData)
                 }
 
                 if let recoveryMap = assessment.recoveryMap {
@@ -44,7 +50,7 @@ struct ResultsSummaryView: View {
                             .font(HydraTypography.section(28))
                             .foregroundStyle(HydraTheme.Colors.ink)
 
-                        ForEach(recoveryMap.highlightedRegions) { region in
+                        ForEach(Array(recoveryMap.highlightedRegions.enumerated()), id: \.offset) { _, region in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(region.region.displayLabel)
                                     .font(HydraTypography.ui(16, weight: .semibold))
@@ -71,6 +77,16 @@ struct ResultsSummaryView: View {
                             )
                         }
                     }
+                } else {
+                    HydraCard(role: .ivory) {
+                        HydraEmptyState(
+                            title: "Recovery map insights will appear here.",
+                            message: "When this scan includes enough regional signal context, HydraScan will surface highlighted body regions and compensation notes in this section.",
+                            icon: "map",
+                            eyebrow: "Recovery Map",
+                            role: .ivory
+                        )
+                    }
                 }
 
                 HStack {
@@ -91,17 +107,28 @@ struct ResultsSummaryView: View {
         }
     }
 
-    private func metricCard(title: String, values: [String: String]) -> some View {
+    private func metricCard(title: String, values: [String: String], category: ScanMetricCatalog.MetricCategory) -> some View {
         HydraCard(role: .panel) {
             Text(title)
                 .font(HydraTypography.section(26))
                 .foregroundStyle(HydraTheme.Colors.primaryText)
 
-            ForEach(values.keys.sorted(), id: \.self) { key in
-                HydraMetricRow(
-                    label: key.replacingOccurrences(of: "_", with: " ").capitalized,
-                    value: values[key] ?? ""
+            if values.isEmpty {
+                let emptyState = aggregateEmptyState(for: title)
+                HydraEmptyState(
+                    title: emptyState.title,
+                    message: emptyState.message,
+                    icon: "chart.line.uptrend.xyaxis",
+                    eyebrow: emptyState.eyebrow,
+                    role: .panel
                 )
+            } else {
+                ForEach(values.keys.sorted(), id: \.self) { key in
+                    HydraMetricRow(
+                        label: ScanMetricCatalog.label(for: key, category: category),
+                        value: values[key] ?? ""
+                    )
+                }
             }
         }
     }
@@ -121,27 +148,194 @@ struct ResultsSummaryView: View {
         )
     }
 
+    private var summaryOverviewCard: some View {
+        HydraCard(role: .ivory) {
+            Text("Session Overview")
+                .font(HydraTypography.section(28))
+                .foregroundStyle(HydraTheme.Colors.ink)
+
+            HydraMetricRow(
+                label: "Focus Regions",
+                value: assessment.bodyZones.isEmpty ? "Not specified" : assessment.bodyZones.map(\.displayLabel).joined(separator: ", "),
+                accent: HydraTheme.Colors.ink,
+                labelWidth: 110
+            )
+
+            HydraMetricRow(
+                label: "Recovery Goal",
+                value: assessment.recoveryGoal?.displayLabel ?? "General assessment",
+                accent: HydraTheme.Colors.ink,
+                labelWidth: 110
+            )
+
+            HydraMetricRow(
+                label: "Assessment Type",
+                value: assessment.assessmentType.rawValue.replacingOccurrences(of: "_", with: " ").capitalized,
+                accent: HydraTheme.Colors.ink,
+                labelWidth: 110
+            )
+        }
+    }
+
     private func quickPoseSummaryCard(quickPoseData: QuickPoseResult) -> some View {
-        HydraCard {
+        let landmarkFrameCount = quickPoseData.stepResults.reduce(0) { partialResult, stepResult in
+            partialResult + stepResult.landmarks.count
+        }
+
+        return HydraCard {
             Text("Scan Details")
                 .font(HydraTypography.section(26))
                 .foregroundStyle(HydraTheme.Colors.primaryText)
 
-            HydraMetricRow(label: "Landmark Frames", value: "\(quickPoseData.landmarks.count)")
+            HydraMetricRow(label: "Capture Schema", value: "v\(quickPoseData.schemaVersion)")
+            HydraMetricRow(label: "Guided Steps", value: "\(quickPoseData.stepResults.count)")
+            HydraMetricRow(
+                label: "Landmark Frames",
+                value: landmarkFrameCount > 0 ? "\(landmarkFrameCount)" : "Summary only"
+            )
 
             if quickPoseData.repSummaries.isEmpty {
-                Text("No repeated movement cycles were detected in this scan.")
-                    .font(HydraTypography.body(15))
-                    .foregroundStyle(HydraTheme.Colors.secondaryText)
+                HydraEmptyState(
+                    title: "No repeated movement cycles were detected.",
+                    message: "This capture still saved landmark data, range of motion, and movement quality, but it didn’t identify a repeat-based exercise pattern.",
+                    icon: "figure.walk.motion",
+                    eyebrow: "Scan Details",
+                    role: .panel
+                )
             } else {
-                ForEach(quickPoseData.repSummaries) { summary in
+                ForEach(Array(quickPoseData.repSummaries.enumerated()), id: \.offset) { _, summary in
                     HydraMetricRow(
-                        label: summary.movement.replacingOccurrences(of: "_", with: " ").capitalized,
+                        label: ScanMetricCatalog.label(for: summary.movement),
                         value: "\(summary.count) rep\(summary.count == 1 ? "" : "s")"
                     )
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func onboardingStepSections(quickPoseData: QuickPoseResult) -> some View {
+        ForEach(Array(quickPoseData.stepResults.enumerated()), id: \.offset) { _, stepResult in
+            HydraCard(role: .panel) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(ScanMetricCatalog.title(for: stepResult.step))
+                        .font(HydraTypography.section(26))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                    HydraMetricRow(
+                        label: "Confidence",
+                        value: "\(Int((stepResult.confidence * 100).rounded()))%"
+                    )
+
+                    if stepResult.completenessStatus == .partial {
+                        HydraStatusBanner(
+                            message: partialStepMessage(for: stepResult),
+                            tone: .warning,
+                            icon: "exclamationmark.triangle.fill"
+                        )
+                    }
+
+                    if stepResult.completenessStatus == .insufficientSignal {
+                        HydraEmptyState(
+                            title: "This step did not return enough signal for a detailed breakdown.",
+                            message: "HydraScan still saved the scan, but this pose needs a clearer tracking pass before the detailed metrics can be interpreted confidently.",
+                            icon: "figure.stand",
+                            eyebrow: ScanMetricCatalog.title(for: stepResult.step),
+                            role: .panel
+                        )
+                    } else {
+                        ForEach(Array(stepMetricRows(for: stepResult).enumerated()), id: \.offset) { _, row in
+                            HydraMetricRow(label: row.label, value: row.value)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func stepMetricRows(for stepResult: QuickPoseStepResult) -> [(label: String, value: String)] {
+        var rows: [(String, String)] = []
+
+        for key in stepResult.derivedMetrics.keys.sorted() {
+            guard let value = stepResult.derivedMetrics[key] else { continue }
+            rows.append((ScanMetricCatalog.label(for: key, category: .derived), formattedValue(for: key, value: value)))
+        }
+
+        for key in stepResult.romValues.keys.sorted() {
+            guard let value = stepResult.romValues[key] else { continue }
+            rows.append((ScanMetricCatalog.label(for: key, category: .rom), formattedValue(for: key, value: value)))
+        }
+
+        for key in stepResult.asymmetryScores.keys.sorted() {
+            guard let value = stepResult.asymmetryScores[key] else { continue }
+            rows.append((ScanMetricCatalog.label(for: key, category: .asymmetry), formattedValue(for: key, value: value)))
+        }
+
+        return rows
+    }
+
+    private func formattedValue(for key: String, value: Double) -> String {
+        if key.contains("score") || key.contains("quality") {
+            let normalized = value > 1 ? value : value * 100
+            return String(format: "%.0f%%", normalized)
+        }
+
+        if key.contains("asymmetry") || key.contains("offset") || key.contains("tracking") || key.contains("wobble") || key.contains("sway") {
+            return String(format: "%.1f", value)
+        }
+
+        return String(format: "%.0f°", value)
+    }
+
+    private func aggregateEmptyState(for title: String) -> (eyebrow: String, title: String, message: String) {
+        let stepResults = assessment.quickPoseData?.stepResults ?? []
+
+        if stepResults.isEmpty {
+            return (
+                title.uppercased(),
+                "\(title) could not be computed from this scan.",
+                "This assessment finished without a usable step-level payload for \(title.lowercased()), so HydraScan could not synthesize the summary metrics."
+            )
+        }
+
+        let hasUsableStepData = stepResults.contains { $0.completenessStatus != .insufficientSignal }
+        if hasUsableStepData {
+            return (
+                title.uppercased(),
+                "\(title) is still missing from the synthesized summary.",
+                "The pose-by-pose scan returned usable data below, but HydraScan did not produce a complete aggregate \(title.lowercased()) summary for this assessment."
+            )
+        }
+
+        return (
+            title.uppercased(),
+            "\(title) was not measurable with enough confidence in this run.",
+            "Every onboarding step completed, but the scan did not return enough reliable signal to synthesize \(title.lowercased()) into the top-level summary."
+        )
+    }
+
+    private func partialStepMessage(for stepResult: QuickPoseStepResult) -> String {
+        let sourceLabel: String = {
+            switch stepResult.computationSource {
+            case .featureSeries:
+                return "feature tracking"
+            case .landmarkFallback:
+                return "landmark tracking"
+            case .mixed:
+                return "mixed feature + landmark tracking"
+            }
+        }()
+
+        if stepResult.missingMetricKeys.isEmpty {
+            return "This step was estimated using \(sourceLabel), and HydraScan marked it as partial because some values were confidence-limited."
+        }
+
+        let missingPreview = stepResult.missingMetricKeys
+            .prefix(3)
+            .map { ScanMetricCatalog.label(for: $0) }
+            .joined(separator: ", ")
+
+        return "This step was estimated using \(sourceLabel). Some outputs were unavailable: \(missingPreview)."
     }
 }
 

@@ -13,10 +13,11 @@ struct QuickPoseCaptureView: View {
     init(
         user: HydraUser,
         profile: ClientProfile,
+        assessmentType: AssessmentType = .intake,
         service: SupabaseServiceProtocol,
         onComplete: @escaping (Assessment, AssessmentPersistenceState?) -> Void
     ) {
-        _viewModel = StateObject(wrappedValue: CaptureViewModel(user: user, profile: profile, service: service))
+        _viewModel = StateObject(wrappedValue: CaptureViewModel(user: user, profile: profile, assessmentType: assessmentType, service: service))
         self.onComplete = onComplete
     }
 
@@ -44,6 +45,7 @@ struct QuickPoseCaptureView: View {
 
                     HydraMetricRow(label: "Status", value: viewModel.liveStatusText)
                     HydraMetricRow(label: "Frames Captured", value: "\(viewModel.capturedFrameCount)")
+                    HydraMetricRow(label: "Tracking Confidence", value: "\(Int(viewModel.currentStepConfidencePercent.rounded()))%")
                     HydraMetricRow(label: "Estimated Reps", value: "\(viewModel.repCount)")
 
                     if viewModel.currentMetrics.isEmpty {
@@ -108,7 +110,7 @@ struct QuickPoseCaptureView: View {
             viewModel.stopQuickPosePreview()
         }
         .onChange(of: viewModel.latestAssessment) { _, newValue in
-            if let newValue {
+            if let newValue, !viewModel.isLoading, viewModel.flowState == .results {
                 onComplete(newValue, viewModel.persistenceState)
             }
         }
@@ -193,19 +195,14 @@ struct QuickPoseCaptureView: View {
     }
 
     private var unsupportedPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: "camera.viewfinder")
-                .font(.system(size: 52))
-                .foregroundStyle(HydraTheme.Colors.primaryText.opacity(0.88))
-
-            Text("QuickPose live capture is unavailable on this runtime.")
-                .font(HydraTypography.section(28))
-                .foregroundStyle(HydraTheme.Colors.primaryText)
-
-            Text(viewModel.supportNote)
-                .font(HydraTypography.body(15))
-                .foregroundStyle(HydraTheme.Colors.secondaryText)
-        }
+        HydraEmptyState(
+            title: "QuickPose live capture is unavailable on this runtime.",
+            message: viewModel.supportNote,
+            icon: "camera.viewfinder",
+            eyebrow: "QuickPose preview",
+            centered: false,
+            role: .panel
+        )
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(

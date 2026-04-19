@@ -19,7 +19,7 @@ struct EmojiScalePicker: View {
                 } label: {
                     VStack(spacing: 8) {
                         Text(option.emoji)
-                            .font(.system(size: 28))
+                            .font(HydraTypography.ui(28, weight: .semibold))
                         Text(option.label)
                             .font(HydraTypography.ui(12, weight: .medium))
                     }

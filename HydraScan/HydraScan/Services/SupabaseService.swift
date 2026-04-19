@@ -1577,6 +1577,9 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
             let asymmetryValues = assessmentSignals.flatMap { signal in
                 signal.asymmetryScores.values
             }
+            let gaitStressValues = assessmentSignals.flatMap { signal in
+                signal.gaitMetrics.values
+            }
 
             if !movementQualityValues.isEmpty {
                 let averageQuality = movementQualityValues.reduce(0, +) / Double(movementQualityValues.count)
@@ -1587,6 +1590,12 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
                 let averageAsymmetry = asymmetryValues.reduce(0, +) / Double(asymmetryValues.count)
                 let symmetryScore = clamp(1.0 - (averageAsymmetry / 100.0), min: 0, max: 1)
                 assessmentSignal += clamp((symmetryScore - 0.5) * 8.0, min: -4, max: 4)
+            }
+
+            if !gaitStressValues.isEmpty {
+                let averageGaitStress = gaitStressValues.reduce(0, +) / Double(gaitStressValues.count)
+                let gaitScore = clamp(1.0 - (averageGaitStress / 100.0), min: 0, max: 1)
+                assessmentSignal += clamp((gaitScore - 0.5) * 6.0, min: -3, max: 3)
             }
 
             assessmentSignal = clamp(assessmentSignal, min: -10, max: 10)
@@ -1641,27 +1650,29 @@ final class LiveSupabaseService: SupabaseServiceProtocol {
     private func fetchAssessmentSignals(
         clientProfileID: UUID,
         limit: Int
-    ) async throws -> [(movementQualityScores: [String: Double], asymmetryScores: [String: Double])] {
+    ) async throws -> [(movementQualityScores: [String: Double], asymmetryScores: [String: Double], gaitMetrics: [String: Double])] {
         struct AssessmentSignalRow: Decodable {
             let movementQualityScores: [String: Double]
             let asymmetryScores: [String: Double]
+            let gaitMetrics: [String: Double]?
 
             enum CodingKeys: String, CodingKey {
                 case movementQualityScores = "movement_quality_scores"
                 case asymmetryScores = "asymmetry_scores"
+                case gaitMetrics = "gait_metrics"
             }
         }
 
         let rows: [AssessmentSignalRow] = try await core.client
             .from("assessments")
-            .select("movement_quality_scores, asymmetry_scores")
+            .select("movement_quality_scores, asymmetry_scores, gait_metrics")
             .eq("client_id", value: clientProfileID.uuidString)
             .order("created_at", ascending: false)
             .limit(limit)
             .execute()
             .value
 
-        return rows.map { ($0.movementQualityScores, $0.asymmetryScores) }
+        return rows.map { ($0.movementQualityScores, $0.asymmetryScores, $0.gaitMetrics ?? [:]) }
     }
 
     private func fallbackTrend(clientProfileID: UUID) async throws -> [RecoveryScoreTrendPoint] {

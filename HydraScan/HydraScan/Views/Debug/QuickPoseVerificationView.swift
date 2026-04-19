@@ -185,9 +185,13 @@ struct QuickPoseVerificationView: View {
             }
 
             if viewModel.liveArtifactURL == nil, viewModel.fixtureArtifactURL == nil {
-                Text("No artifacts saved yet.")
-                    .font(HydraTypography.body(15))
-                    .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                HydraEmptyState(
+                    title: "No artifacts saved yet.",
+                    message: "Run the fixture verifier or save a live snapshot to inspect processed JSON and exported media from this device.",
+                    icon: "tray.full",
+                    eyebrow: "Artifact Output",
+                    role: .ivory
+                )
             }
         }
     }
@@ -199,9 +203,12 @@ struct QuickPoseVerificationView: View {
                 .foregroundStyle(HydraTheme.Colors.primaryText)
 
             if viewModel.diagnosticMessages.isEmpty {
-                Text("No diagnostic events yet.")
-                    .font(HydraTypography.body(15))
-                    .foregroundStyle(HydraTheme.Colors.secondaryText)
+                HydraEmptyState(
+                    title: "No diagnostic events yet.",
+                    message: "As the runtime starts, processes a fixture, or saves artifacts, detailed verification logs will appear here.",
+                    icon: "terminal",
+                    eyebrow: "Runtime Events"
+                )
             } else {
                 ForEach(Array(viewModel.diagnosticMessages.enumerated()), id: \.offset) { _, message in
                     Text(message)

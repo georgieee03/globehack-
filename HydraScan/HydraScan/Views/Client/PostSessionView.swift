@@ -18,6 +18,28 @@ struct PostSessionView: View {
                     subtitle: "A short reflection keeps your recovery score and practitioner-facing outcome summary accurate."
                 )
 
+                HydraCard(role: .ivory) {
+                    Text("Session Reflection")
+                        .font(HydraTypography.section(28))
+                        .foregroundStyle(HydraTheme.Colors.ink)
+
+                    HydraMetricRow(
+                        label: "Focus",
+                        value: viewModel.assessment.bodyZones.isEmpty
+                            ? "General movement scan"
+                            : viewModel.assessment.bodyZones.map(\.displayLabel).joined(separator: ", "),
+                        accent: HydraTheme.Colors.ink,
+                        labelWidth: 90
+                    )
+
+                    HydraMetricRow(
+                        label: "Goal",
+                        value: viewModel.assessment.recoveryGoal?.displayLabel ?? "General recovery",
+                        accent: HydraTheme.Colors.ink,
+                        labelWidth: 90
+                    )
+                }
+
                 sliderCard(title: "Stiffness After", value: $viewModel.stiffnessAfter)
                 sliderCard(title: "Soreness After", value: $viewModel.sorenessAfter)
 
@@ -25,12 +47,20 @@ struct PostSessionView: View {
                 triStatePicker(title: "Did this session feel effective?", selection: $viewModel.sessionEffective)
                 triStatePicker(title: "Do you feel more ready to move?", selection: $viewModel.readinessImproved)
 
-                Picker("Would you repeat this flow?", selection: $viewModel.repeatIntent) {
-                    Text("Yes").tag(RepeatIntent.yes)
-                    Text("Maybe").tag(RepeatIntent.maybe)
-                    Text("No").tag(RepeatIntent.no)
+                HydraCard(role: .panel) {
+                    Text("Would you repeat this flow?")
+                        .font(HydraTypography.ui(15, weight: .semibold))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                    ChoiceFlow(spacing: 10, lineSpacing: 10) {
+                        ForEach(RepeatIntent.allCases.filter { $0 != .noTryDifferent }) { option in
+                            Button(option.uiLabel) {
+                                viewModel.repeatIntent = option
+                            }
+                            .buttonStyle(HydraChipStyle(selected: viewModel.repeatIntent == option, emphasized: true))
+                        }
+                    }
                 }
-                .pickerStyle(.segmented)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Notes")
@@ -48,6 +78,14 @@ struct PostSessionView: View {
 
                 if let errorMessage = viewModel.errorMessage {
                     HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
+                }
+
+                if viewModel.isSaving {
+                    HydraStatusBanner(
+                        message: "Submitting your client-side outcome summary to HydraScan…",
+                        tone: .neutral,
+                        icon: "arrow.triangle.2.circlepath.circle.fill"
+                    )
                 }
 
                 Button("Submit Feedback") {
@@ -86,12 +124,47 @@ struct PostSessionView: View {
                 .font(HydraTypography.ui(15, weight: .semibold))
                 .foregroundStyle(HydraTheme.Colors.primaryText)
 
-            Picker(title, selection: selection) {
-                Text("Yes").tag(TriStateChoice.yes)
-                Text("Maybe").tag(TriStateChoice.maybe)
-                Text("No").tag(TriStateChoice.no)
+            ChoiceFlow(spacing: 10, lineSpacing: 10) {
+                ForEach(TriStateChoice.allCases) { option in
+                    Button(option.uiLabel) {
+                        selection.wrappedValue = option
+                    }
+                    .buttonStyle(HydraChipStyle(selected: selection.wrappedValue == option, emphasized: true))
+                }
             }
-            .pickerStyle(.segmented)
+        }
+    }
+}
+
+private struct ChoiceFlow<Content: View>: View {
+    let spacing: CGFloat
+    let lineSpacing: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        FlowLayout(spacing: spacing, lineSpacing: lineSpacing) {
+            content
+        }
+    }
+}
+
+private extension TriStateChoice {
+    var uiLabel: String {
+        rawValue.capitalized
+    }
+}
+
+private extension RepeatIntent {
+    var uiLabel: String {
+        switch self {
+        case .yes:
+            return "Yes"
+        case .maybe:
+            return "Maybe"
+        case .no:
+            return "No"
+        case .noTryDifferent:
+            return "No, Try Different"
         }
     }
 }

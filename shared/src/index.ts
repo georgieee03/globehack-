@@ -2,6 +2,7 @@ export * from "./types/user.js";
 export * from "./types/device.js";
 export * from "./types/session.js";
 export * from "./types/assessment.js";
+export * from "./types/quickpose.js";
 export * from "./types/client-profile.js";
 export * from "./types/outcome.js";
 export * from "./types/daily-checkin.js";

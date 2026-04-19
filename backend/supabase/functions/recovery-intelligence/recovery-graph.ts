@@ -192,7 +192,7 @@ export async function recomputeAndInsertRecoveryScore(
   // Fetch recent assessments (last 3) so capture quality can influence the score
   const { data: assessments } = await supabase
     .from("assessments")
-    .select("movement_quality_scores, asymmetry_scores")
+    .select("movement_quality_scores, asymmetry_scores, gait_metrics")
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(3);
@@ -251,6 +251,8 @@ export async function recomputeAndInsertRecoveryScore(
           (assessment.movement_quality_scores as Record<string, number> | null) ?? null,
         asymmetry_scores:
           (assessment.asymmetry_scores as Record<string, number> | null) ?? null,
+        gait_metrics:
+          (assessment.gait_metrics as Record<string, number> | null) ?? null,
       }),
     ),
     recentCheckins: (checkins ?? []).map(

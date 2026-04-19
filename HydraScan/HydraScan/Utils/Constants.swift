@@ -104,7 +104,25 @@ enum HydraScanConstants {
         leftBalanceStep,
     ]
 
+    static let intakeCaptureSteps = defaultCaptureSteps
+
+    static func captureSteps(
+        for primaryRegions: [BodyRegion],
+        assessmentType: AssessmentType
+    ) -> [CaptureStepDefinition] {
+        switch assessmentType {
+        case .intake:
+            return intakeCaptureSteps
+        case .preSession, .followUp, .reassessment:
+            return focusedCaptureSteps(for: primaryRegions)
+        }
+    }
+
     static func captureSteps(for primaryRegions: [BodyRegion]) -> [CaptureStepDefinition] {
+        focusedCaptureSteps(for: primaryRegions)
+    }
+
+    static func focusedCaptureSteps(for primaryRegions: [BodyRegion]) -> [CaptureStepDefinition] {
         let selectedRegions = Set(primaryRegions)
         guard !selectedRegions.isEmpty else {
             return defaultCaptureSteps

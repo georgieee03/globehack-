@@ -38,10 +38,34 @@ private struct SignalCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(region.displayLabel)
-                .font(HydraTypography.section(24))
-                .foregroundStyle(HydraTheme.Colors.primaryText)
+        HydraCard(role: .panel) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(region.displayLabel)
+                        .font(HydraTypography.section(24))
+                        .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                    Text("Describe the dominant signal and when it tends to show up.")
+                        .font(HydraTypography.body(14))
+                        .foregroundStyle(HydraTheme.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                Text("\(workingSignal.severity)/10")
+                    .font(HydraTypography.numeric(18))
+                    .foregroundStyle(HydraTheme.Colors.goldSoft)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(HydraTheme.Colors.overlay)
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(HydraTheme.Colors.gold.opacity(0.24), lineWidth: 1)
+                            )
+                    )
+            }
 
             Picker("Signal Type", selection: $workingSignal.type) {
                 ForEach(RecoverySignalType.allCases) { type in
@@ -56,8 +80,8 @@ private struct SignalCard: View {
                         .font(HydraTypography.ui(14, weight: .semibold))
                         .foregroundStyle(HydraTheme.Colors.primaryText)
                     Spacer()
-                    Text("\(workingSignal.severity)/10")
-                        .font(HydraTypography.ui(14, weight: .semibold))
+                    Text(severityDescriptor)
+                        .font(HydraTypography.ui(14, weight: .medium))
                         .foregroundStyle(HydraTheme.Colors.secondaryText)
                 }
 
@@ -66,30 +90,49 @@ private struct SignalCard: View {
                         get: { Double(workingSignal.severity) },
                         set: { workingSignal.severity = Int($0.rounded()) }
                     ),
-                    in: 1...10,
+                    in: 1 ... 10,
                     step: 1
                 )
                 .tint(HydraTheme.Colors.gold)
             }
 
-            Picker("When do you notice it most?", selection: $workingSignal.trigger) {
-                ForEach(ActivityTrigger.allCases) { trigger in
-                    Text(trigger.displayLabel).tag(trigger.rawValue)
+            HydraInputShell {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Trigger")
+                            .font(HydraTypography.ui(13, weight: .semibold))
+                            .foregroundStyle(HydraTheme.Colors.secondaryText)
+                        Text(ActivityTrigger(rawValue: workingSignal.trigger)?.displayLabel ?? "Select")
+                            .font(HydraTypography.ui(15, weight: .semibold))
+                            .foregroundStyle(HydraTheme.Colors.primaryText)
+                    }
+
+                    Spacer()
+
+                    Picker("When do you notice it most?", selection: $workingSignal.trigger) {
+                        ForEach(ActivityTrigger.allCases) { trigger in
+                            Text(trigger.displayLabel).tag(trigger.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
                 }
             }
-            .pickerStyle(.menu)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(HydraTheme.fill(for: .panel))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
-                )
-        )
         .onChange(of: workingSignal) { _, newValue in
             onUpdate(newValue)
+        }
+    }
+
+    private var severityDescriptor: String {
+        switch workingSignal.severity {
+        case 1 ... 3:
+            return "Low"
+        case 4 ... 6:
+            return "Moderate"
+        case 7 ... 8:
+            return "Elevated"
+        default:
+            return "High"
         }
     }
 }

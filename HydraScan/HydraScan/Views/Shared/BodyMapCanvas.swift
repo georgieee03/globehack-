@@ -4,22 +4,88 @@ struct BodyMapCanvas: View {
     let selectedRegions: Set<BodyRegion>
     let onToggle: (BodyRegion) -> Void
 
-    private static let regionFrames: [BodyRegion: CGRect] = [
-        .neck: CGRect(x: 0.43, y: 0.06, width: 0.14, height: 0.06),
-        .leftShoulder: CGRect(x: 0.19, y: 0.13, width: 0.17, height: 0.08),
-        .rightShoulder: CGRect(x: 0.64, y: 0.13, width: 0.17, height: 0.08),
-        .leftArm: CGRect(x: 0.10, y: 0.22, width: 0.14, height: 0.22),
-        .rightArm: CGRect(x: 0.76, y: 0.22, width: 0.14, height: 0.22),
-        .upperBack: CGRect(x: 0.34, y: 0.18, width: 0.32, height: 0.12),
-        .lowerBack: CGRect(x: 0.35, y: 0.31, width: 0.30, height: 0.12),
-        .leftHip: CGRect(x: 0.30, y: 0.45, width: 0.14, height: 0.08),
-        .rightHip: CGRect(x: 0.56, y: 0.45, width: 0.14, height: 0.08),
-        .leftKnee: CGRect(x: 0.31, y: 0.66, width: 0.12, height: 0.08),
-        .rightKnee: CGRect(x: 0.57, y: 0.66, width: 0.12, height: 0.08),
-        .leftCalf: CGRect(x: 0.30, y: 0.76, width: 0.13, height: 0.12),
-        .rightCalf: CGRect(x: 0.57, y: 0.76, width: 0.13, height: 0.12),
-        .leftFoot: CGRect(x: 0.25, y: 0.90, width: 0.18, height: 0.06),
-        .rightFoot: CGRect(x: 0.57, y: 0.90, width: 0.18, height: 0.06),
+    private struct RegionLayout {
+        let frame: CGRect
+        let minimumSize: CGSize
+        let cornerRadius: CGFloat
+    }
+
+    private static let regionLayouts: [BodyRegion: RegionLayout] = [
+        .neck: RegionLayout(
+            frame: CGRect(x: 0.41, y: 0.05, width: 0.18, height: 0.07),
+            minimumSize: CGSize(width: 60, height: 44),
+            cornerRadius: 20
+        ),
+        .leftShoulder: RegionLayout(
+            frame: CGRect(x: 0.11, y: 0.13, width: 0.20, height: 0.08),
+            minimumSize: CGSize(width: 78, height: 48),
+            cornerRadius: 20
+        ),
+        .rightShoulder: RegionLayout(
+            frame: CGRect(x: 0.69, y: 0.13, width: 0.20, height: 0.08),
+            minimumSize: CGSize(width: 78, height: 48),
+            cornerRadius: 20
+        ),
+        .leftArm: RegionLayout(
+            frame: CGRect(x: 0.09, y: 0.22, width: 0.15, height: 0.21),
+            minimumSize: CGSize(width: 58, height: 108),
+            cornerRadius: 24
+        ),
+        .rightArm: RegionLayout(
+            frame: CGRect(x: 0.76, y: 0.22, width: 0.15, height: 0.21),
+            minimumSize: CGSize(width: 58, height: 108),
+            cornerRadius: 24
+        ),
+        .upperBack: RegionLayout(
+            frame: CGRect(x: 0.31, y: 0.18, width: 0.38, height: 0.12),
+            minimumSize: CGSize(width: 118, height: 64),
+            cornerRadius: 22
+        ),
+        .lowerBack: RegionLayout(
+            frame: CGRect(x: 0.31, y: 0.31, width: 0.38, height: 0.12),
+            minimumSize: CGSize(width: 118, height: 60),
+            cornerRadius: 22
+        ),
+        .leftHip: RegionLayout(
+            frame: CGRect(x: 0.27, y: 0.47, width: 0.17, height: 0.08),
+            minimumSize: CGSize(width: 64, height: 44),
+            cornerRadius: 20
+        ),
+        .rightHip: RegionLayout(
+            frame: CGRect(x: 0.56, y: 0.47, width: 0.17, height: 0.08),
+            minimumSize: CGSize(width: 64, height: 44),
+            cornerRadius: 20
+        ),
+        .leftKnee: RegionLayout(
+            frame: CGRect(x: 0.27, y: 0.68, width: 0.17, height: 0.08),
+            minimumSize: CGSize(width: 64, height: 46),
+            cornerRadius: 20
+        ),
+        .rightKnee: RegionLayout(
+            frame: CGRect(x: 0.56, y: 0.68, width: 0.17, height: 0.08),
+            minimumSize: CGSize(width: 64, height: 46),
+            cornerRadius: 20
+        ),
+        .leftCalf: RegionLayout(
+            frame: CGRect(x: 0.27, y: 0.78, width: 0.16, height: 0.12),
+            minimumSize: CGSize(width: 62, height: 68),
+            cornerRadius: 22
+        ),
+        .rightCalf: RegionLayout(
+            frame: CGRect(x: 0.57, y: 0.78, width: 0.16, height: 0.12),
+            minimumSize: CGSize(width: 62, height: 68),
+            cornerRadius: 22
+        ),
+        .leftFoot: RegionLayout(
+            frame: CGRect(x: 0.18, y: 0.91, width: 0.22, height: 0.06),
+            minimumSize: CGSize(width: 76, height: 44),
+            cornerRadius: 20
+        ),
+        .rightFoot: RegionLayout(
+            frame: CGRect(x: 0.60, y: 0.91, width: 0.22, height: 0.06),
+            minimumSize: CGSize(width: 76, height: 44),
+            cornerRadius: 20
+        ),
     ]
 
     var body: some View {
@@ -29,13 +95,18 @@ struct BodyMapCanvas: View {
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                 ForEach(BodyRegion.allCases) { region in
-                    if let frame = Self.regionFrames[region] {
+                    if let layout = Self.regionLayouts[region] {
+                        let isSelected = selectedRegions.contains(region)
+                        let width = max(geometry.size.width * layout.frame.width, layout.minimumSize.width)
+                        let height = max(geometry.size.height * layout.frame.height, layout.minimumSize.height)
+                        let fontSize = width < 72 ? 10.0 : 11.0
+
                         Button {
                             onToggle(region)
                         } label: {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
                                 .fill(
-                                    selectedRegions.contains(region)
+                                    isSelected
                                         ? AnyShapeStyle(
                                             LinearGradient(
                                                 colors: [
@@ -49,31 +120,36 @@ struct BodyMapCanvas: View {
                                         : AnyShapeStyle(HydraTheme.Colors.surface.opacity(0.16))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
                                         .stroke(
-                                            selectedRegions.contains(region)
+                                            isSelected
                                                 ? HydraTheme.Colors.goldOutline.opacity(0.65)
                                                 : HydraTheme.Colors.stroke,
-                                            lineWidth: selectedRegions.contains(region) ? 1.8 : 1
+                                            lineWidth: isSelected ? 1.8 : 1
                                         )
                                 )
                                 .overlay(alignment: .center) {
-                                    Text(region.displayLabel)
-                                        .font(HydraTypography.ui(11, weight: .semibold))
+                                    Text(region.bodyCanvasLabel)
+                                        .font(HydraTypography.ui(fontSize, weight: .semibold))
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.72)
+                                        .allowsTightening(true)
                                         .multilineTextAlignment(.center)
-                                        .foregroundStyle(selectedRegions.contains(region) ? HydraTheme.Colors.ink : HydraTheme.Colors.secondaryText)
-                                        .padding(4)
+                                        .foregroundStyle(isSelected ? HydraTheme.Colors.ink : HydraTheme.Colors.secondaryText)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 4)
                                 }
                         }
                         .buttonStyle(.plain)
-                        .frame(
-                            width: geometry.size.width * frame.width,
-                            height: geometry.size.height * frame.height
-                        )
+                        .accessibilityLabel(region.displayLabel)
+                        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                        .accessibilityHint(isSelected ? "Double tap to remove this area from today’s scan." : "Double tap to add this area to today’s scan.")
+                        .frame(width: width, height: height)
                         .position(
-                            x: geometry.size.width * (frame.minX + frame.width / 2),
-                            y: geometry.size.height * (frame.minY + frame.height / 2)
+                            x: geometry.size.width * (layout.frame.minX + layout.frame.width / 2),
+                            y: geometry.size.height * (layout.frame.minY + layout.frame.height / 2)
                         )
+                        .zIndex(isSelected ? 1 : 0)
                     }
                 }
             }
@@ -118,6 +194,27 @@ struct BodyMapCanvas: View {
                 .stroke(HydraTheme.Colors.stroke, lineWidth: 1)
                 .padding(10)
         )
+    }
+}
+
+private extension BodyRegion {
+    var bodyCanvasLabel: String {
+        switch self {
+        case .leftShoulder:
+            return "Left\nShoulder"
+        case .rightShoulder:
+            return "Right\nShoulder"
+        case .leftHip:
+            return "Left\nHip"
+        case .rightHip:
+            return "Right\nHip"
+        case .leftKnee:
+            return "Left\nKnee"
+        case .rightKnee:
+            return "Right\nKnee"
+        default:
+            return displayLabel
+        }
     }
 }
 

@@ -350,6 +350,52 @@ struct HydraStatusBanner: View {
     }
 }
 
+struct HydraEmptyState: View {
+    let title: String
+    let message: String
+    var icon: String = "sparkles"
+    var eyebrow: String? = nil
+    var centered = false
+    var role: HydraSurfaceRole = .panel
+
+    private var titleColor: Color {
+        role == .ivory ? HydraTheme.Colors.ink : HydraTheme.Colors.primaryText
+    }
+
+    private var bodyColor: Color {
+        role == .ivory ? HydraTheme.Colors.inkSecondary : HydraTheme.Colors.secondaryText
+    }
+
+    var body: some View {
+        VStack(alignment: centered ? .center : .leading, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(role == .ivory ? HydraTheme.Colors.ivoryBorder.opacity(0.18) : HydraTheme.Colors.overlay)
+                    .frame(width: 60, height: 60)
+
+                Image(systemName: icon)
+                    .font(HydraTypography.ui(24, weight: .semibold))
+                    .foregroundStyle(role == .ivory ? HydraTheme.Colors.goldDeep : HydraTheme.Colors.goldSoft)
+            }
+
+            if let eyebrow {
+                HydraEyebrow(text: eyebrow)
+            }
+
+            Text(title)
+                .font(HydraTypography.section(28))
+                .foregroundStyle(titleColor)
+                .multilineTextAlignment(centered ? .center : .leading)
+
+            Text(message)
+                .font(HydraTypography.body(15))
+                .foregroundStyle(bodyColor)
+                .multilineTextAlignment(centered ? .center : .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
+    }
+}
+
 struct HydraButtonStyle: ButtonStyle {
     let kind: HydraButtonKind
 

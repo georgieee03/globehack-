@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="LaunchScreenViewController">
+    <device id="retina6_12" orientation="portrait" appearance="dark"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23506"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+    </dependencies>
+    <scenes>
+        <!--Launch Screen View Controller-->
+        <scene sceneID="LaunchScene">
+            <objects>
+                <viewController id="LaunchScreenViewController" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="LaunchRootView">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="HydraWordmarkReversed" translatesAutoresizingMaskIntoConstraints="NO" id="LaunchWordmark">
+                                <rect key="frame" x="54" y="160" width="285" height="60"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="60" id="LaunchWordmarkHeight"/>
+                                </constraints>
+                            </imageView>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="HydraEmblemReversed" translatesAutoresizingMaskIntoConstraints="NO" id="LaunchEmblem">
+                                <rect key="frame" x="164.5" y="256" width="64" height="64"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="64" id="LaunchEmblemWidth"/>
+                                    <constraint firstAttribute="height" constant="64" id="LaunchEmblemHeight"/>
+                                </constraints>
+                            </imageView>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="LaunchSafeArea"/>
+                        <color key="backgroundColor" red="0.05098039216" green="0.07450980392" blue="0.1058823529" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="LaunchWordmark" firstAttribute="top" secondItem="LaunchSafeArea" secondAttribute="top" constant="96" id="LaunchWordmarkTop"/>
+                            <constraint firstItem="LaunchWordmark" firstAttribute="centerX" secondItem="LaunchSafeArea" secondAttribute="centerX" id="LaunchWordmarkCenterX"/>
+                            <constraint firstItem="LaunchWordmark" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="LaunchSafeArea" secondAttribute="leading" constant="32" id="LaunchWordmarkLeading"/>
+                            <constraint firstItem="LaunchSafeArea" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="LaunchWordmark" secondAttribute="trailing" constant="32" id="LaunchWordmarkTrailing"/>
+                            <constraint firstItem="LaunchEmblem" firstAttribute="top" secondItem="LaunchWordmark" secondAttribute="bottom" constant="32" id="LaunchEmblemTop"/>
+                            <constraint firstItem="LaunchEmblem" firstAttribute="centerX" secondItem="LaunchSafeArea" secondAttribute="centerX" id="LaunchEmblemCenterX"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="FirstResponder" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="HydraEmblemReversed" width="96" height="96"/>
+        <image name="HydraWordmarkReversed" width="460" height="96"/>
+    </resources>
+</document>

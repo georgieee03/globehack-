@@ -25,30 +25,6 @@ enum AssessmentPersistenceState: Equatable {
     }
 }
 
-private struct PosePointSample {
-    let x: Double
-    let y: Double
-    let z: Double
-    let visibility: Double
-    let presence: Double
-
-    func distance(to other: PosePointSample) -> Double {
-        hypot(x - other.x, y - other.y)
-    }
-}
-
-private struct CapturedPoseFrame {
-    let artifact: QuickPoseVerificationFrameArtifact
-    let shoulderMid: PosePointSample?
-    let hipMid: PosePointSample?
-    let leftShoulder: PosePointSample?
-    let rightShoulder: PosePointSample?
-    let leftHip: PosePointSample?
-    let rightHip: PosePointSample?
-    let leftAnkle: PosePointSample?
-    let rightAnkle: PosePointSample?
-}
-
 private struct CapturedAssessmentData {
     let quickPoseResult: QuickPoseResult
     let romValues: [String: Double]
@@ -75,6 +51,7 @@ final class CaptureViewModel: ObservableObject {
 
     let user: HydraUser
     let profile: ClientProfile
+    let assessmentType: AssessmentType
     let captureSteps: [CaptureStepDefinition]
 
     private let service: SupabaseServiceProtocol
@@ -94,12 +71,14 @@ final class CaptureViewModel: ObservableObject {
     init(
         user: HydraUser,
         profile: ClientProfile,
+        assessmentType: AssessmentType = .intake,
         service: SupabaseServiceProtocol,
         offlineCacheService: OfflineCacheServiceProtocol = OfflineCacheService.shared
     ) {
         self.user = user
         self.profile = profile
-        captureSteps = HydraScanConstants.captureSteps(for: profile.primaryRegions)
+        self.assessmentType = assessmentType
+        captureSteps = HydraScanConstants.captureSteps(for: profile.primaryRegions, assessmentType: assessmentType)
         self.service = service
         self.offlineCacheService = offlineCacheService
         remainingSeconds = captureSteps.first?.durationSeconds ?? 0
@@ -116,6 +95,17 @@ final class CaptureViewModel: ObservableObject {
     var progressValue: Double {
         guard !captureSteps.isEmpty else { return 0 }
         return Double(currentStepIndex + (flowState == .results ? 1 : 0)) / Double(captureSteps.count)
+    }
+
+    var currentStepConfidencePercent: Double {
+        #if canImport(QuickPoseCore)
+        let frames = capturedFramesByStep[currentStep.step, default: []]
+        guard !frames.isEmpty else { return 0 }
+        let successful = frames.filter(\.isSuccessful).count
+        return Double(successful) / Double(frames.count) * 100
+        #else
+        return 0
+        #endif
     }
 
     var hasConfiguredSDKKey: Bool {
@@ -258,6 +248,7 @@ final class CaptureViewModel: ObservableObject {
 
         #if canImport(QuickPoseCore)
         liveTimeoutTask?.cancel()
+        guard quickPoseRunning else { return }
         quickPose.stop()
         quickPoseRunning = false
         #endif
@@ -339,12 +330,14 @@ final class CaptureViewModel: ObservableObject {
             return
         }
 
+        stopLiveQuickPoseAfterCapture()
+
         let assessment = Assessment(
             id: UUID(),
             clientID: user.id,
             clinicID: user.clinicID,
             practitionerID: nil,
-            assessmentType: .preSession,
+            assessmentType: assessmentType,
             quickPoseData: captureData.quickPoseResult,
             romValues: captureData.romValues,
             asymmetryScores: captureData.asymmetryScores,
@@ -367,18 +360,62 @@ final class CaptureViewModel: ObservableObject {
             recoveryGraphDelta: captureData.recoveryGraphMetrics,
             createdAt: Date()
         )
+        releaseCaptureBuffersAfterSavePreparation()
+        let displayQuickPoseData = assessment.quickPoseData?.presentationSnapshot()
+
+        var completedAssessment: Assessment?
 
         do {
             let uploadedAssessment = try await service.createAssessment(assessment)
             persistenceState = .uploaded("Assessment saved to your recovery timeline.")
-            latestAssessment = uploadedAssessment
             flowState = .results
+            completedAssessment = Assessment(
+                id: assessment.id,
+                clientID: assessment.clientID,
+                clinicID: assessment.clinicID,
+                practitionerID: assessment.practitionerID,
+                assessmentType: assessment.assessmentType,
+                quickPoseData: displayQuickPoseData,
+                romValues: assessment.romValues,
+                asymmetryScores: assessment.asymmetryScores,
+                movementQualityScores: assessment.movementQualityScores,
+                gaitMetrics: assessment.gaitMetrics,
+                heartRate: assessment.heartRate,
+                breathRate: assessment.breathRate,
+                hrvRMSSD: assessment.hrvRMSSD,
+                bodyZones: assessment.bodyZones,
+                recoveryGoal: assessment.recoveryGoal,
+                subjectiveBaseline: assessment.subjectiveBaseline,
+                recoveryMap: uploadedAssessment.recoveryMap ?? assessment.recoveryMap,
+                recoveryGraphDelta: assessment.recoveryGraphDelta,
+                createdAt: uploadedAssessment.createdAt
+            )
         } catch {
             do {
                 try await offlineCacheService.cacheAssessment(assessment)
                 persistenceState = .cachedOffline("No connection? This assessment is saved on this device and can sync automatically later.")
-                latestAssessment = assessment
                 flowState = .results
+                completedAssessment = Assessment(
+                    id: assessment.id,
+                    clientID: assessment.clientID,
+                    clinicID: assessment.clinicID,
+                    practitionerID: assessment.practitionerID,
+                    assessmentType: assessment.assessmentType,
+                    quickPoseData: displayQuickPoseData,
+                    romValues: assessment.romValues,
+                    asymmetryScores: assessment.asymmetryScores,
+                    movementQualityScores: assessment.movementQualityScores,
+                    gaitMetrics: assessment.gaitMetrics,
+                    heartRate: assessment.heartRate,
+                    breathRate: assessment.breathRate,
+                    hrvRMSSD: assessment.hrvRMSSD,
+                    bodyZones: assessment.bodyZones,
+                    recoveryGoal: assessment.recoveryGoal,
+                    subjectiveBaseline: assessment.subjectiveBaseline,
+                    recoveryMap: assessment.recoveryMap,
+                    recoveryGraphDelta: assessment.recoveryGraphDelta,
+                    createdAt: assessment.createdAt
+                )
             } catch {
                 errorMessage = error.localizedDescription
                 flowState = .idle
@@ -386,6 +423,25 @@ final class CaptureViewModel: ObservableObject {
         }
 
         isLoading = false
+        latestAssessment = completedAssessment
+    }
+
+    private func stopLiveQuickPoseAfterCapture() {
+        #if canImport(QuickPoseCore)
+        liveTimeoutTask?.cancel()
+        quickPose.stop()
+        quickPoseRunning = false
+        #endif
+    }
+
+    private func releaseCaptureBuffersAfterSavePreparation() {
+        overlayImage = nil
+        currentMetrics = []
+
+        #if canImport(QuickPoseCore)
+        capturedFramesByStep = [:]
+        allCapturedFrames = []
+        #endif
     }
 
     private func resetCaptureSession() {
@@ -406,116 +462,22 @@ final class CaptureViewModel: ObservableObject {
 
     private func buildAssessmentData() -> CapturedAssessmentData? {
         #if canImport(QuickPoseCore)
-        let shoulderFrames = successfulFrames(for: [.standingFront, .shoulderFlexion])
-        let squatFrames = successfulFrames(for: [.squat])
-        let hipHingeFrames = successfulFrames(for: [.standingSide, .hipHinge])
-        let rightBalanceFrames = successfulFrames(for: [.singleLegBalanceRight])
-        let leftBalanceFrames = successfulFrames(for: [.singleLegBalanceLeft])
-        let allFrames = successfulFrames(for: CaptureStep.allCases)
-
-        guard !allFrames.isEmpty else { return nil }
-
-        let romValues = compactMetrics([
-            ("right_shoulder_flexion", maxMetric(named: "Right Shoulder", in: shoulderFrames)),
-            ("left_shoulder_flexion", maxMetric(named: "Left Shoulder", in: shoulderFrames)),
-            ("right_hip_flexion", maxMetric(named: "Right Hip", in: hipHingeFrames + squatFrames)),
-            ("left_hip_flexion", maxMetric(named: "Left Hip", in: hipHingeFrames + squatFrames)),
-            ("right_knee_flexion", maxMetric(named: "Right Knee", in: squatFrames)),
-            ("left_knee_flexion", maxMetric(named: "Left Knee", in: squatFrames)),
-            ("back_flexion", maxMetric(named: "Back", in: hipHingeFrames)),
-            ("neck_flexion", maxMetric(named: "Neck", in: allFrames)),
-        ])
-
-        let asymmetryScores = compactMetrics([
-            ("shoulder_flexion", maxMetric(named: "Shoulder ROM Asymmetry", in: shoulderFrames)),
-            ("hip_flexion", asymmetryPercentage(
-                right: maxMetric(named: "Right Hip", in: hipHingeFrames + squatFrames),
-                left: maxMetric(named: "Left Hip", in: hipHingeFrames + squatFrames)
-            )),
-            ("knee_flexion", asymmetryPercentage(
-                right: maxMetric(named: "Right Knee", in: squatFrames),
-                left: maxMetric(named: "Left Knee", in: squatFrames)
-            )),
-            ("single_leg_balance", asymmetryPercentage(
-                right: stabilityScore(for: rightBalanceFrames),
-                left: stabilityScore(for: leftBalanceFrames)
-            )),
-        ])
-
-        let movementQualityScores = compactMetrics([
-            ("standing_front", standingQuality(for: successfulFrames(for: [.standingFront]))),
-            ("standing_side", standingQuality(for: successfulFrames(for: [.standingSide]))),
-            ("shoulder_flexion", shoulderFlexionQuality(for: shoulderFrames)),
-            ("squat", squatQuality(for: squatFrames)),
-            ("hip_hinge", hipHingeQuality(for: hipHingeFrames)),
-            ("single_leg_balance_right", stabilityScore(for: rightBalanceFrames)),
-            ("single_leg_balance_left", stabilityScore(for: leftBalanceFrames)),
-        ])
-
-        let rightBalanceSway = normalizedSway(for: rightBalanceFrames)
-        let leftBalanceSway = normalizedSway(for: leftBalanceFrames)
-        let gaitMetrics = compactMetrics([
-            ("right_balance_sway", rightBalanceSway),
-            ("left_balance_sway", leftBalanceSway),
-            ("front_posture_symmetry", postureSymmetryScore(for: successfulFrames(for: [.standingFront]))),
-        ])
-
-        let jointAngles = compactMetrics([
-            ("right_shoulder_current", latestMetric(named: "Right Shoulder", in: shoulderFrames)),
-            ("left_shoulder_current", latestMetric(named: "Left Shoulder", in: shoulderFrames)),
-            ("right_hip_current", latestMetric(named: "Right Hip", in: hipHingeFrames + squatFrames)),
-            ("left_hip_current", latestMetric(named: "Left Hip", in: hipHingeFrames + squatFrames)),
-            ("right_knee_current", latestMetric(named: "Right Knee", in: squatFrames)),
-            ("left_knee_current", latestMetric(named: "Left Knee", in: squatFrames)),
-            ("back_current", latestMetric(named: "Back", in: hipHingeFrames)),
-            ("neck_current", latestMetric(named: "Neck", in: allFrames)),
-        ])
-
-        let repSummaries = buildRepSummaries(
-            shoulderFrames: shoulderFrames,
-            squatFrames: squatFrames,
-            hipHingeFrames: hipHingeFrames
-        )
-
-        let mobilityIndex = average([
-            normalized(romValues["right_shoulder_flexion"], upperBound: 170),
-            normalized(romValues["left_shoulder_flexion"], upperBound: 170),
-            normalized(romValues["right_hip_flexion"], upperBound: 120),
-            normalized(romValues["left_hip_flexion"], upperBound: 120),
-            normalized(romValues["right_knee_flexion"], upperBound: 130),
-            normalized(romValues["left_knee_flexion"], upperBound: 130),
-        ])
-        let symmetryIndex = average(asymmetryScores.values.map { Optional(clamp(1 - ($0 / 100), lower: 0, upper: 1)) })
-        let stabilityIndex = average([
-            movementQualityScores["single_leg_balance_right"],
-            movementQualityScores["single_leg_balance_left"],
-            movementQualityScores["standing_front"],
-        ])
-
-        let recoveryGraphMetrics = compactMetrics([
-            ("mobility_index", mobilityIndex.map { $0 * 100 }),
-            ("symmetry_index", symmetryIndex.map { $0 * 100 }),
-            ("stability_index", stabilityIndex.map { $0 * 100 }),
-        ])
-
-        let quickPoseResult = QuickPoseResult(
-            landmarks: sampledLandmarkFrames(from: allFrames),
-            jointAngles: jointAngles,
-            romValues: romValues,
-            asymmetryScores: asymmetryScores,
-            movementQualityScores: movementQualityScores,
-            gaitMetrics: nil,
-            repSummaries: repSummaries,
-            capturedAt: Date()
-        )
+        guard let captureStartedAt else { return nil }
+        let assembler = StepAssessmentAssembler(captureStartedAt: captureStartedAt)
+        guard let assembled = assembler.buildAssessmentData(
+            orderedSteps: captureSteps,
+            framesByStep: capturedFramesByStep
+        ) else {
+            return nil
+        }
 
         return CapturedAssessmentData(
-            quickPoseResult: quickPoseResult,
-            romValues: romValues,
-            asymmetryScores: asymmetryScores,
-            movementQualityScores: movementQualityScores,
-            gaitMetrics: gaitMetrics,
-            recoveryGraphMetrics: recoveryGraphMetrics
+            quickPoseResult: assembled.quickPoseResult,
+            romValues: assembled.romValues,
+            asymmetryScores: assembled.asymmetryScores,
+            movementQualityScores: assembled.movementQualityScores,
+            gaitMetrics: assembled.gaitMetrics,
+            recoveryGraphMetrics: assembled.recoveryGraphMetrics
         )
         #else
         return nil
@@ -576,10 +538,14 @@ final class CaptureViewModel: ObservableObject {
             return romValues["right_knee_flexion"]
         case .leftKnee:
             return romValues["left_knee_flexion"]
+        case .rightFoot, .rightCalf:
+            return romValues["right_ankle_dorsiflexion"]
+        case .leftFoot, .leftCalf:
+            return romValues["left_ankle_dorsiflexion"]
         case .lowerBack, .upperBack:
-            return romValues["back_flexion"]
+            return romValues["spinal_flexion"]
         case .neck:
-            return romValues["neck_flexion"]
+            return romValues["spinal_flexion"]
         default:
             return nil
         }
@@ -593,6 +559,8 @@ final class CaptureViewModel: ObservableObject {
             return asymmetryScores["hip_flexion"]
         case .rightKnee, .leftKnee:
             return asymmetryScores["knee_flexion"]
+        case .rightFoot, .rightCalf, .leftFoot, .leftCalf:
+            return asymmetryScores["ankle_dorsiflexion"]
         default:
             return asymmetryScores["single_leg_balance"]
         }
@@ -633,7 +601,7 @@ final class CaptureViewModel: ObservableObject {
         case .shoulderFlexion:
             orderedNames = ["Right Shoulder", "Left Shoulder", "Shoulder ROM Asymmetry"]
         case .squat:
-            orderedNames = ["Right Knee", "Left Knee", "Right Hip", "Left Hip"]
+            orderedNames = ["Right Knee", "Left Knee", "Right Hip", "Left Hip", "Right Ankle", "Left Ankle"]
         case .hipHinge:
             orderedNames = ["Right Hip", "Left Hip", "Back"]
         case .singleLegBalanceRight, .singleLegBalanceLeft:
@@ -681,12 +649,21 @@ final class CaptureViewModel: ObservableObject {
         guard let landmarks else {
             return CapturedPoseFrame(
                 artifact: artifact,
+                nose: nil,
+                leftEar: nil,
+                rightEar: nil,
                 shoulderMid: nil,
                 hipMid: nil,
                 leftShoulder: nil,
                 rightShoulder: nil,
+                leftElbow: nil,
+                rightElbow: nil,
+                leftWrist: nil,
+                rightWrist: nil,
                 leftHip: nil,
                 rightHip: nil,
+                leftKnee: nil,
+                rightKnee: nil,
                 leftAnkle: nil,
                 rightAnkle: nil
             )
@@ -694,12 +671,21 @@ final class CaptureViewModel: ObservableObject {
 
         return CapturedPoseFrame(
             artifact: artifact,
+            nose: pointSample(landmarks.landmark(forBody: .nose)),
+            leftEar: pointSample(landmarks.landmark(forBody: .ear(side: .left))),
+            rightEar: pointSample(landmarks.landmark(forBody: .ear(side: .right))),
             shoulderMid: pointSample(landmarks.landmark(forBody: .shoulderMid)),
             hipMid: pointSample(landmarks.landmark(forBody: .hipMid)),
             leftShoulder: pointSample(landmarks.landmark(forBody: .shoulder(side: .left))),
             rightShoulder: pointSample(landmarks.landmark(forBody: .shoulder(side: .right))),
+            leftElbow: pointSample(landmarks.landmark(forBody: .elbow(side: .left))),
+            rightElbow: pointSample(landmarks.landmark(forBody: .elbow(side: .right))),
+            leftWrist: pointSample(landmarks.landmark(forBody: .wrist(side: .left))),
+            rightWrist: pointSample(landmarks.landmark(forBody: .wrist(side: .right))),
             leftHip: pointSample(landmarks.landmark(forBody: .hip(side: .left))),
             rightHip: pointSample(landmarks.landmark(forBody: .hip(side: .right))),
+            leftKnee: pointSample(landmarks.landmark(forBody: .knee(side: .left))),
+            rightKnee: pointSample(landmarks.landmark(forBody: .knee(side: .right))),
             leftAnkle: pointSample(landmarks.landmark(forBody: .ankle(side: .left))),
             rightAnkle: pointSample(landmarks.landmark(forBody: .ankle(side: .right)))
         )
@@ -977,16 +963,5 @@ final class CaptureViewModel: ObservableObject {
 
     private func clamp(_ value: Double, lower: Double = 0, upper: Double = 1) -> Double {
         min(max(value, lower), upper)
-    }
-}
-
-private extension Array where Element == Double {
-    var average: Double {
-        guard !isEmpty else { return 0 }
-        return reduce(0, +) / Double(count)
-    }
-
-    var averageOptional: Double? {
-        isEmpty ? nil : average
     }
 }

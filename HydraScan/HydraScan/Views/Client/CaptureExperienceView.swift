@@ -27,7 +27,7 @@ struct CaptureExperienceView: View {
                             screen = .capture(profile)
                         }
                     case let .capture(profile):
-                        QuickPoseCaptureView(user: user, profile: profile, service: service) { assessment, persistenceState in
+                        QuickPoseCaptureView(user: user, profile: profile, assessmentType: .intake, service: service) { assessment, persistenceState in
                             screen = .results(assessment, persistenceState)
                         }
                     case let .results(assessment, persistenceState):
@@ -40,7 +40,6 @@ struct CaptureExperienceView: View {
                     case let .feedback(assessment):
                         PostSessionView(user: user, assessment: assessment, service: service) {
                             screen = .complete
-                            onFlowFinished()
                         }
                     case .complete:
                         completionView
@@ -55,10 +54,10 @@ struct CaptureExperienceView: View {
 
     private var completionView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HydraPageHeader(
-                eyebrow: "Session Complete",
-                title: "Your latest motion session is saved.",
-                subtitle: "Intake, live capture, and post-session feedback are all now part of your recovery timeline."
+            HydraBrandStage(
+                eyebrow: "7-Step Onboarding Scan",
+                title: "Your onboarding motion baseline is saved.",
+                subtitle: "All seven guided poses, your live capture, and post-session feedback are now part of your recovery timeline."
             )
 
             HydraCard(role: .ivory) {
@@ -72,10 +71,19 @@ struct CaptureExperienceView: View {
                 }
             }
 
-            Button("Start Another Session") {
-                screen = .intake
+            HStack {
+                Button("Start Another Session") {
+                    screen = .intake
+                }
+                .buttonStyle(HydraButtonStyle(kind: .secondary))
+
+                Spacer()
+
+                Button("Return to Overview") {
+                    onFlowFinished()
+                }
+                .buttonStyle(HydraButtonStyle(kind: .primary))
             }
-            .buttonStyle(HydraButtonStyle(kind: .primary))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 20)

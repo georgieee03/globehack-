@@ -17,6 +17,7 @@ import { generateRecoveryMap } from "./recovery-map.ts";
 import { queryRecoveryGraph, recomputeAndInsertRecoveryScore } from "./recovery-graph.ts";
 import { buildPrompt, type LlmExplanationRequest } from "../llm-explanation/prompt-builder.ts";
 import { generateFallbackExplanation } from "../llm-explanation/fallback-template.ts";
+import { parseQuickPoseAssessment } from "./scan-contract.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,8 +143,11 @@ async function handleRecommend(
   const recoverySignals =
     (profile.recovery_signals as Record<string, { type: string; severity: number }>) ?? {};
   const primaryRegions = (profile.primary_regions as BodyRegion[]) ?? [];
-  const romValues = (assessment.rom_values as Record<string, number>) ?? {};
-  const asymmetryScores = (assessment.asymmetry_scores as Record<string, number>) ?? {};
+  const quickPoseAssessment = parseQuickPoseAssessment(assessment.quickpose_data);
+  const romValues = quickPoseAssessment?.aggregate_rom_values ??
+    ((assessment.rom_values as Record<string, number>) ?? {});
+  const asymmetryScores = quickPoseAssessment?.aggregate_asymmetry_scores ??
+    ((assessment.asymmetry_scores as Record<string, number>) ?? {});
   const recoveryGoal = (assessment.recovery_goal as RecoveryGoal) ?? "recovery";
   const sensitivities = (profile.sensitivities as string[]) ?? [];
 

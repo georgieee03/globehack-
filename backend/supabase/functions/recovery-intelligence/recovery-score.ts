@@ -20,6 +20,7 @@ export interface RecoveryScoreInput {
   recentAssessments: Array<{
     movement_quality_scores: Record<string, number> | null;
     asymmetry_scores: Record<string, number> | null;
+    gait_metrics: Record<string, number> | null;
   }>;
   recentCheckins: Array<{
     overall_feeling: number;
@@ -106,6 +107,9 @@ export function computeRecoveryScore(
     const asymmetryValues = input.recentAssessments.flatMap((assessment) =>
       Object.values(assessment.asymmetry_scores ?? {})
     );
+    const gaitValues = input.recentAssessments.flatMap((assessment) =>
+      Object.values(assessment.gait_metrics ?? {})
+    );
 
     if (qualityValues.length > 0) {
       const averageQuality =
@@ -120,6 +124,14 @@ export function computeRecoveryScore(
         asymmetryValues.length;
       const symmetryScore = clamp(1 - averageAsymmetry / 100, 0, 1);
       assessmentSignal += clamp((symmetryScore - 0.5) * 8, -4, 4);
+    }
+
+    if (gaitValues.length > 0) {
+      const averageGaitStress =
+        gaitValues.reduce((sum, value) => sum + value, 0) /
+        gaitValues.length;
+      const gaitScore = clamp(1 - averageGaitStress / 100, 0, 1);
+      assessmentSignal += clamp((gaitScore - 0.5) * 6, -3, 3);
     }
 
     assessmentSignal = clamp(assessmentSignal, -10, 10);

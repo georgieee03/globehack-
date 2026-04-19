@@ -223,6 +223,14 @@ private struct HomeTabView: View {
 private struct ProfileView: View {
     @ObservedObject var viewModel: AuthViewModel
 
+    private var roleLabel: String {
+        viewModel.sessionContext?.role.rawValue.capitalized ?? "Client"
+    }
+
+    private var clinicName: String {
+        viewModel.sessionContext?.clinic?.name ?? "Clinic not assigned"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -233,8 +241,28 @@ private struct ProfileView: View {
                         subtitle: viewModel.currentUser?.email ?? viewModel.authUser?.email ?? "Signed in with HydraScan auth"
                     )
 
-                    if let clinicName = viewModel.sessionContext?.clinic?.name {
-                        HydraStatusBanner(message: clinicName, tone: .neutral, icon: "cross.case.fill")
+                    HydraCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(alignment: .top, spacing: 14) {
+                                HydraBrandEmblem(size: 40)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Access Identity")
+                                        .font(HydraTypography.section(26))
+                                        .foregroundStyle(HydraTheme.Colors.primaryText)
+                                    Text("Your app session, clinic context, and connected environment stay visible here so support and verification never feel buried.")
+                                        .font(HydraTypography.body(15))
+                                        .foregroundStyle(HydraTheme.Colors.secondaryText)
+                                }
+                            }
+
+                            HydraMetricRow(label: "Role", value: roleLabel)
+                            HydraMetricRow(label: "Clinic", value: clinicName)
+                            HydraMetricRow(
+                                label: "Client Profile",
+                                value: viewModel.sessionContext?.clientProfileID?.uuidString.prefix(8).uppercased() ?? "Pending"
+                            )
+                        }
                     }
 
                     HydraCard(role: .ivory) {
@@ -253,22 +281,46 @@ private struct ProfileView: View {
                         }
                     }
 
-#if canImport(QuickPoseCore) && canImport(QuickPoseSwiftUI)
-                    NavigationLink {
-                        QuickPoseVerificationView()
-                    } label: {
-                        Label("Open QuickPose Verification Lab", systemImage: "scope")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(HydraButtonStyle(kind: .secondary))
-#endif
+                    HydraCard(role: .panel) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Verification & Tooling")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
 
-                    Button("Sign Out") {
-                        Task {
-                            await viewModel.signOut()
+                            Text("Use the verification lab whenever you want to confirm camera tracking, overlays, and saved artifacts on a real device without leaving the branded app shell.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+#if canImport(QuickPoseCore) && canImport(QuickPoseSwiftUI)
+                            NavigationLink {
+                                QuickPoseVerificationView()
+                            } label: {
+                                Label("Open QuickPose Verification Lab", systemImage: "scope")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .secondary))
+#endif
                         }
                     }
-                    .buttonStyle(HydraButtonStyle(kind: .primary))
+
+                    HydraCard(role: .ivory) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Account Controls")
+                                .font(HydraTypography.section(26))
+                                .foregroundStyle(HydraTheme.Colors.ink)
+
+                            Text("Signing out clears the current client session from this device and returns the app to the HydraScan auth shell.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.inkSecondary)
+
+                            Button("Sign Out") {
+                                Task {
+                                    await viewModel.signOut()
+                                }
+                            }
+                            .buttonStyle(HydraButtonStyle(kind: .destructive))
+                        }
+                    }
                 }
                 .padding(HydraTheme.Spacing.page)
             }

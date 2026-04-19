@@ -12,10 +12,13 @@ struct BeforeAfterView: View {
     private var comparisons: [(String, Double, Double)] {
         guard let firstAssessment, let latestAssessment else { return [] }
 
-        return latestAssessment.romValues.keys.sorted().compactMap { key in
+        let firstMetrics = combinedMetrics(for: firstAssessment)
+        let latestMetrics = combinedMetrics(for: latestAssessment)
+
+        return latestMetrics.keys.sorted().compactMap { key in
             guard
-                let latest = latestAssessment.romValues[key],
-                let first = firstAssessment.romValues[key]
+                let latest = latestMetrics[key],
+                let first = firstMetrics[key]
             else {
                 return nil
             }
@@ -32,20 +35,50 @@ struct BeforeAfterView: View {
                     .foregroundStyle(HydraTheme.Colors.ink)
 
                 if !hasComparisonData {
-                    Text("Complete at least two assessments to unlock your comparison view.")
-                        .font(HydraTypography.body(15))
-                        .foregroundStyle(HydraTheme.Colors.inkSecondary)
+                    HydraEmptyState(
+                        title: "Comparison unlocks after another scan.",
+                        message: "Complete at least two assessments to compare how your range of motion is changing over time.",
+                        icon: "timeline.selection",
+                        eyebrow: "Not enough history",
+                        centered: false,
+                        role: .ivory
+                    )
                 } else {
                     ForEach(comparisons, id: \.0) { item in
                         HydraMetricRow(
-                            label: item.0.replacingOccurrences(of: "_", with: " ").capitalized,
-                            value: "\(Int(item.1))° \u{2192} \(Int(item.2))°",
+                            label: ScanMetricCatalog.label(for: item.0),
+                            value: "\(formattedValue(for: item.0, value: item.1)) \u{2192} \(formattedValue(for: item.0, value: item.2))",
                             accent: item.2 >= item.1 ? HydraTheme.Colors.success : HydraTheme.Colors.warning
                         )
                     }
                 }
             }
         }
+    }
+
+    private func combinedMetrics(for assessment: Assessment) -> [String: Double] {
+        var metrics = assessment.romValues
+
+        if let quickPoseData = assessment.quickPoseData {
+            for stepResult in quickPoseData.stepResults {
+                metrics.merge(stepResult.derivedMetrics) { _, new in new }
+            }
+        }
+
+        return metrics
+    }
+
+    private func formattedValue(for key: String, value: Double) -> String {
+        if key.contains("score") {
+            let normalized = value > 1 ? value : value * 100
+            return String(format: "%.0f%%", normalized)
+        }
+
+        if key.contains("offset") || key.contains("tracking") || key.contains("wobble") || key.contains("sway") {
+            return String(format: "%.1f", value)
+        }
+
+        return String(format: "%.0f°", value)
     }
 }
 

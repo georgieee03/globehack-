@@ -12,6 +12,13 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import type { BodyRegion } from "../_shared/safe-envelope.ts";
 import type { RecoveryGoal } from "./rules-engine.ts";
+import {
+  averageDerivedMetricForKeys,
+  averageMetricForKeys,
+  maxMetricForKeys,
+  parseQuickPoseAssessment,
+} from "./scan-contract.ts";
+import { regionMetricMap } from "./region-metric-map.ts";
 
 // ---------------------------------------------------------------------------
 // Types (local definitions matching shared types)
@@ -140,8 +147,8 @@ function findBilateralPartner(region: BodyRegion): BodyRegion | null {
 
 function scoreOutcome(outcome: Record<string, unknown>): number {
   let rating = 0;
-  if (outcome.mobility_improved === "yes") rating += 0.3;
-  if (outcome.session_effective === "yes") rating += 0.3;
+  if (outcome.mobility_improved === true || outcome.mobility_improved === "yes") rating += 0.3;
+  if (outcome.session_effective === true || outcome.session_effective === "yes") rating += 0.3;
   const sb = (outcome.stiffness_before as number) ?? 0;
   const sa = (outcome.stiffness_after as number) ?? 0;
   rating += (Math.max(0, sb - sa) / 10) * 0.2;
@@ -190,7 +197,7 @@ export async function generateRecoveryMap(
   // Fetch previous assessment for ROM delta comparison
   const { data: prevAssessments } = await supabase
     .from("assessments")
-    .select("rom_values, asymmetry_scores")
+    .select("rom_values, asymmetry_scores, quickpose_data")
     .eq("client_id", clientId)
     .lt("created_at", assessment?.created_at ?? new Date().toISOString())
     .order("created_at", { ascending: false })
@@ -218,12 +225,19 @@ export async function generateRecoveryMap(
     >) ?? {};
   const primaryRegions =
     (clientProfile?.primary_regions as BodyRegion[]) ?? [];
+  const currentScan = parseQuickPoseAssessment(assessment?.quickpose_data);
+  const previousScan = parseQuickPoseAssessment(prevAssessment?.quickpose_data);
   const romValues =
-    (assessment?.rom_values as Record<string, number>) ?? {};
+    currentScan?.aggregate_rom_values ??
+    ((assessment?.rom_values as Record<string, number>) ?? {});
   const prevRomValues =
-    (prevAssessment?.rom_values as Record<string, number>) ?? {};
+    previousScan?.aggregate_rom_values ??
+    ((prevAssessment?.rom_values as Record<string, number>) ?? {});
   const asymmetryScores =
-    (assessment?.asymmetry_scores as Record<string, number>) ?? {};
+    currentScan?.aggregate_asymmetry_scores ??
+    ((assessment?.asymmetry_scores as Record<string, number>) ?? {});
+  const movementQualityScores = currentScan?.aggregate_movement_quality_scores ?? {};
+  const gaitMetrics = currentScan?.aggregate_gait_metrics ?? {};
 
   // Build signal list from recovery_signals
   const signals: Array<{
@@ -250,42 +264,40 @@ export async function generateRecoveryMap(
 
   // Build highlighted regions
   const highlightedRegions: HighlightedRegion[] = signals.map((signal) => {
+    const mapping = regionMetricMap(signal.region);
+
     // Compute ROM delta vs previous assessment
     let romDelta: number | null = null;
     let trend: HighlightedRegion["trend"] = null;
 
-    const regionRomKeys = Object.keys(romValues).filter((k) =>
-      k.includes(signal.region),
-    );
-    if (regionRomKeys.length > 0) {
-      const key = regionRomKeys[0];
-      const currentRom = romValues[key];
-      const prevRom = prevRomValues[key];
-      if (currentRom !== undefined && prevRom !== undefined) {
-        romDelta = currentRom - prevRom;
-        if (romDelta < -5) trend = "declining";
-        else if (romDelta > 5) trend = "improving";
-        else trend = "stable";
-      }
+    const currentRom = averageMetricForKeys(romValues, mapping.romKeys) ??
+      averageDerivedMetricForKeys(currentScan, mapping.derivedMetricKeys);
+    const prevRom = averageMetricForKeys(prevRomValues, mapping.romKeys) ??
+      averageDerivedMetricForKeys(previousScan, mapping.derivedMetricKeys);
+
+    if (currentRom !== null && prevRom !== null) {
+      romDelta = currentRom - prevRom;
+      if (romDelta < -5) trend = "declining";
+      else if (romDelta > 5) trend = "improving";
+      else trend = "stable";
     }
 
     // Check bilateral asymmetry > 10%
-    let asymmetryFlag = false;
-    const partner = findBilateralPartner(signal.region);
-    if (partner) {
-      const asymmetry =
-        asymmetryScores[signal.region] ?? asymmetryScores[partner];
-      if (asymmetry !== undefined && asymmetry > 10) {
-        asymmetryFlag = true;
-      }
-    }
+    const asymmetry = maxMetricForKeys(asymmetryScores, mapping.asymmetryKeys);
+    const asymmetryFlag = (asymmetry ?? 0) > 10;
 
     // Compensation hint from adjacent regions with high asymmetry
     let compensationHint: string | null = null;
     const adjacent = ADJACENT_REGIONS[signal.region] ?? [];
     for (const adj of adjacent) {
-      const adjAsymmetry = asymmetryScores[adj];
-      if (adjAsymmetry !== undefined && adjAsymmetry > 10) {
+      const adjacentMapping = regionMetricMap(adj);
+      const adjAsymmetry = maxMetricForKeys(asymmetryScores, adjacentMapping.asymmetryKeys);
+      const adjacentMovementQuality = averageMetricForKeys(
+        movementQualityScores,
+        adjacentMapping.movementQualityKeys,
+      );
+      const adjacentGaitStress = averageMetricForKeys(gaitMetrics, adjacentMapping.gaitMetricKeys);
+      if ((adjAsymmetry !== null && adjAsymmetry > 10) || (adjacentMovementQuality !== null && adjacentMovementQuality < 0.55) || (adjacentGaitStress !== null && adjacentGaitStress > 10)) {
         compensationHint = `Likely compensating from ${adj.replace(/_/g, " ")}`;
         break;
       }

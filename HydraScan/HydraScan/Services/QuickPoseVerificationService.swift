@@ -10,6 +10,8 @@ enum QuickPoseVerificationAnalyzer {
     nonisolated static let leftHipFeature = QuickPose.Feature.rangeOfMotion(.hip(side: .left, clockwiseDirection: false))
     nonisolated static let rightKneeFeature = QuickPose.Feature.rangeOfMotion(.knee(side: .right, clockwiseDirection: true))
     nonisolated static let leftKneeFeature = QuickPose.Feature.rangeOfMotion(.knee(side: .left, clockwiseDirection: false))
+    nonisolated static let rightAnkleFeature = QuickPose.Feature.rangeOfMotion(.ankle(side: .right, clockwiseDirection: true))
+    nonisolated static let leftAnkleFeature = QuickPose.Feature.rangeOfMotion(.ankle(side: .left, clockwiseDirection: false))
     nonisolated static let backFeature = QuickPose.Feature.rangeOfMotion(.back(clockwiseDirection: false))
     nonisolated static let neckFeature = QuickPose.Feature.rangeOfMotion(.neck(clockwiseDirection: false))
     nonisolated static let overlayFeature = QuickPose.Feature.showPoints()
@@ -30,6 +32,8 @@ enum QuickPoseVerificationAnalyzer {
         leftHipFeature,
         rightKneeFeature,
         leftKneeFeature,
+        rightAnkleFeature,
+        leftAnkleFeature,
         backFeature,
         neckFeature,
     ]
@@ -157,8 +161,8 @@ enum QuickPoseVerificationAnalyzer {
             let right = features[rightShoulderFeature]?.value,
             let left = features[leftShoulderFeature]?.value
         {
-            let dominantROM = max(max(abs(right), abs(left)), 1)
-            let asymmetry = abs(right - left) / dominantROM * 100
+            let averageROM = max((abs(right) + abs(left)) / 2, 1)
+            let asymmetry = abs(right - left) / averageROM * 100
             metrics.append(
                 QuickPoseVerificationMetric(
                     name: "Shoulder ROM Asymmetry",

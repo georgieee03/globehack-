@@ -41,6 +41,12 @@ struct CheckInView: View {
                                 .foregroundStyle(HydraTheme.Colors.secondaryText)
 
                             FlowRegionPicker(selectedRegions: $selectedRegions, recommendedRegions: recommendedRegions)
+
+                            HydraMetricRow(
+                                label: "Selected",
+                                value: selectedRegions.isEmpty ? "None yet" : "\(selectedRegions.count) region\(selectedRegions.count == 1 ? "" : "s")",
+                                accent: selectedRegions.isEmpty ? HydraTheme.Colors.secondaryText : HydraTheme.Colors.goldSoft
+                            )
                         }
                     }
 
@@ -60,8 +66,36 @@ struct CheckInView: View {
                         }
                     }
 
+                    HydraCard(role: .panel) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Submission Preview")
+                                .font(HydraTypography.section(24))
+                                .foregroundStyle(HydraTheme.Colors.primaryText)
+
+                            Text("HydraScan will send today’s feeling score, the selected target regions, and your activity context into the live recovery timeline.")
+                                .font(HydraTypography.body(15))
+                                .foregroundStyle(HydraTheme.Colors.secondaryText)
+
+                            HydraMetricRow(label: "Feeling", value: "\(overallFeeling)/5")
+                            HydraMetricRow(
+                                label: "Regions",
+                                value: selectedRegions.isEmpty
+                                    ? "Select at least one region"
+                                    : selectedRegions.sorted { $0.displayLabel < $1.displayLabel }.map(\.displayLabel).joined(separator: ", ")
+                            )
+                        }
+                    }
+
                     if let errorMessage {
                         HydraStatusBanner(message: errorMessage, tone: .error, icon: "exclamationmark.triangle.fill")
+                    }
+
+                    if isSaving {
+                        HydraStatusBanner(
+                            message: "Publishing your latest recovery signal to HydraScan…",
+                            tone: .neutral,
+                            icon: "arrow.triangle.2.circlepath.circle.fill"
+                        )
                     }
 
                     Button("Submit Check-In") {
@@ -70,7 +104,7 @@ struct CheckInView: View {
                         }
                     }
                     .buttonStyle(HydraButtonStyle(kind: .primary))
-                    .disabled(isSaving)
+                    .disabled(isSaving || selectedRegions.isEmpty)
                 }
                 .padding(HydraTheme.Spacing.page)
             }

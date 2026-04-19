@@ -1,3 +1,5 @@
+import type { QuickPoseAssessmentV2 } from "./quickpose.js";
+
 export type AssessmentType =
   | "intake"
   | "pre_session"
@@ -10,7 +12,7 @@ export interface AssessmentRecord {
   clinic_id: string;
   practitioner_id: string | null;
   assessment_type: AssessmentType;
-  quickpose_data: Record<string, unknown> | null;
+  quickpose_data: QuickPoseAssessmentV2 | null;
   rom_values: Record<string, number> | null;
   asymmetry_scores: Record<string, number> | null;
   movement_quality_scores: Record<string, number> | null;

@@ -267,21 +267,31 @@ enum HydraAppearance {
         UITabBar.appearance().tintColor = selectedColor
         UITabBar.appearance().unselectedItemTintColor = normalColor
 
-        UISegmentedControl.appearance().selectedSegmentTintColor = UIColor(HydraTheme.Colors.gold)
-        UISegmentedControl.appearance().backgroundColor = UIColor(HydraTheme.Colors.surfaceRaised)
-        UISegmentedControl.appearance().setTitleTextAttributes(
-            [.foregroundColor: UIColor(HydraTheme.Colors.ink)],
+        let segmentedControl = UISegmentedControl.appearance()
+        segmentedControl.selectedSegmentTintColor = UIColor(HydraTheme.Colors.gold)
+        segmentedControl.backgroundColor = UIColor(HydraTheme.Colors.surfaceRaised)
+        segmentedControl.setTitleTextAttributes(
+            [
+                .foregroundColor: UIColor(HydraTheme.Colors.ink),
+                .font: UIFont.preferredFont(forTextStyle: .subheadline),
+            ],
             for: .selected
         )
-        UISegmentedControl.appearance().setTitleTextAttributes(
-            [.foregroundColor: UIColor(HydraTheme.Colors.primaryText)],
+        segmentedControl.setTitleTextAttributes(
+            [
+                .foregroundColor: UIColor(HydraTheme.Colors.primaryText),
+                .font: UIFont.preferredFont(forTextStyle: .subheadline),
+            ],
             for: .normal
         )
 
-        UISlider.appearance().minimumTrackTintColor = UIColor(HydraTheme.Colors.gold)
-        UISlider.appearance().maximumTrackTintColor = UIColor(HydraTheme.Colors.stroke)
+        let slider = UISlider.appearance()
+        slider.minimumTrackTintColor = UIColor(HydraTheme.Colors.gold)
+        slider.maximumTrackTintColor = UIColor(HydraTheme.Colors.stroke)
+        slider.thumbTintColor = UIColor(HydraTheme.Colors.goldSoft)
         UIProgressView.appearance().progressTintColor = UIColor(HydraTheme.Colors.gold)
         UIProgressView.appearance().trackTintColor = UIColor(HydraTheme.Colors.stroke)
+        UITextView.appearance().backgroundColor = .clear
     }
 }
 
